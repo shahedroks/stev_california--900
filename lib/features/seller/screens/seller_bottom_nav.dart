@@ -20,6 +20,8 @@ class SellerBottomNav extends ConsumerWidget {
     SellerMessagesScreen(),
     SellerEarningsScreen(),
     SellerProfileScreen(),
+
+    
   ];
 
   @override
