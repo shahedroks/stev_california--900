@@ -37,12 +37,14 @@ class SellerMatchingScreen extends ConsumerStatefulWidget {
   final VoidCallback? onAutoAssign;
 
   @override
-  ConsumerState<SellerMatchingScreen> createState() => _SellerMatchingScreenState();
+  ConsumerState<SellerMatchingScreen> createState() =>
+      _SellerMatchingScreenState();
 }
 
 class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
   List<ProviderListItem> _providers = [];
   bool _loading = true;
+
   /// Local town name when user picks from header (same as CustomerHomeScreen).
   String? _selectedTownName;
 
@@ -51,15 +53,61 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
   static const Color _gradientEnd = Color(0xFF5ca3f5);
 
   /// Mock providers for category/town – mirrors getProvidersForCategory.
-  static List<ProviderListItem> _mockProvidersForCategory(String categoryId, String townId) {
-    const avatar1 = 'https://images.unsplash.com/photo-1667328549104-c125874407be?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjbGVhbmluZyUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0fGVufDF8fHx8MTc2OTE0MTE1M3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral';
-    const avatar2 = 'https://images.unsplash.com/photo-1762341119317-fb5417c18407?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvZmZpY2UlMjB3b3JrZXIlMjBwcm9mZXNzaW9uYWx8ZW58MXx8fHwxNzY5MTgxNTM4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral';
-    const avatar3 = 'https://images.unsplash.com/photo-1759521296144-fe6f2d2dc769?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBzZXJ2aWNlJTIwd29ya2VyJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzY5MTgxNTM3fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral';
+  static List<ProviderListItem> _mockProvidersForCategory(
+    String categoryId,
+    String townId,
+  ) {
+    const avatar1 =
+        'https://images.unsplash.com/photo-1667328549104-c125874407be?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjbGVhbmluZyUyMHByb2Zlc3Npb25hbCUyMHBvcnRyYWl0fGVufDF8fHx8MTc2OTE0MTE1M3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral';
+    const avatar2 =
+        'https://images.unsplash.com/photo-1762341119317-fb5417c18407?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvZmZpY2UlMjB3b3JrZXIlMjBwcm9mZXNzaW9uYWx8ZW58MXx8fHwxNzY5MTgxNTM4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral';
+    const avatar3 =
+        'https://images.unsplash.com/photo-1759521296144-fe6f2d2dc769?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBzZXJ2aWNlJTIwd29ya2VyJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzY5MTgxNTM3fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral';
     return [
-      const ProviderListItem(id: 'p1', displayName: 'Sparkle Home Cleaning', avatar: avatar1, rating: 4.9, reviewCount: 108, distance: '2.1 mi', responseTime: 'Within 2 hrs', availableToday: true, categoryNames: ['Cleaning']),
-      const ProviderListItem(id: 'p2', displayName: 'Floor Care Experts', avatar: avatar1, rating: 4.9, reviewCount: 63, distance: '3.0 mi', responseTime: 'Within 1 hr', availableToday: true, categoryNames: ['Cleaning']),
-      const ProviderListItem(id: 'p3', displayName: 'Pro Office Clean', avatar: avatar2, rating: 4.8, reviewCount: 159, distance: '1.5 mi', responseTime: 'Within 3 hrs', availableToday: true, categoryNames: ['Cleaning']),
-      const ProviderListItem(id: 'p4', displayName: 'Elite Home Cleaning', avatar: avatar3, rating: 4.7, reviewCount: 82, distance: '2.5 mi', responseTime: 'Within 2 hrs', availableToday: true, categoryNames: ['Cleaning']),
+      const ProviderListItem(
+        id: 'p1',
+        displayName: 'Sparkle Home Cleaning',
+        avatar: avatar1,
+        rating: 4.9,
+        reviewCount: 108,
+        distance: '2.1 mi',
+        responseTime: 'Within 2 hrs',
+        availableToday: true,
+        categoryNames: ['Cleaning'],
+      ),
+      const ProviderListItem(
+        id: 'p2',
+        displayName: 'Floor Care Experts',
+        avatar: avatar1,
+        rating: 4.9,
+        reviewCount: 63,
+        distance: '3.0 mi',
+        responseTime: 'Within 1 hr',
+        availableToday: true,
+        categoryNames: ['Cleaning'],
+      ),
+      const ProviderListItem(
+        id: 'p3',
+        displayName: 'Pro Office Clean',
+        avatar: avatar2,
+        rating: 4.8,
+        reviewCount: 159,
+        distance: '1.5 mi',
+        responseTime: 'Within 3 hrs',
+        availableToday: true,
+        categoryNames: ['Cleaning'],
+      ),
+      const ProviderListItem(
+        id: 'p4',
+        displayName: 'Elite Home Cleaning',
+        avatar: avatar3,
+        rating: 4.7,
+        reviewCount: 82,
+        distance: '2.5 mi',
+        responseTime: 'Within 2 hrs',
+        availableToday: true,
+        categoryNames: ['Cleaning'],
+      ),
     ];
   }
 
@@ -68,7 +116,10 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     setState(() {
-      _providers = _mockProvidersForCategory(widget.categoryId, widget.selectedTownId);
+      _providers = _mockProvidersForCategory(
+        widget.categoryId,
+        widget.selectedTownId,
+      );
       _loading = false;
     });
   }
@@ -82,7 +133,8 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
   @override
   void didUpdateWidget(covariant SellerMatchingScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.categoryId != widget.categoryId || oldWidget.selectedTownId != widget.selectedTownId) {
+    if (oldWidget.categoryId != widget.categoryId ||
+        oldWidget.selectedTownId != widget.selectedTownId) {
       _loadProviders();
     }
   }
@@ -116,9 +168,8 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => NotificationsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            NotificationsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -164,7 +215,14 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
           children: [
             Icon(Icons.chevron_left, size: 24.sp, color: Colors.white),
             SizedBox(width: 4.w),
-            Text('Back', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: Colors.white)),
+            Text(
+              'Back',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
           ],
         ),
       ),
@@ -181,12 +239,21 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
         children: [
           Text(
             'Available Providers',
-            style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.w600, color: Colors.white),
+            style: TextStyle(
+              fontSize: 20.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
           SizedBox(height: 4.h),
           Text(
-            _loading ? 'Loading...' : '${_providers.length} providers ready to help',
-            style: TextStyle(fontSize: 14.sp, color: Colors.white.withOpacity(0.8)),
+            _loading
+                ? 'Loading...'
+                : '${_providers.length} providers ready to help',
+            style: TextStyle(
+              fontSize: 14.sp,
+              color: Colors.white.withOpacity(0.8),
+            ),
           ),
         ],
       ),
@@ -207,7 +274,11 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
       child: Text(
         'Choose a Provider',
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: Colors.white),
+        style: TextStyle(
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w500,
+          color: Colors.white,
+        ),
       ),
     );
   }
@@ -232,7 +303,11 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
               SizedBox(height: 16.h),
               Text(
                 'No providers available right now',
-                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 8.h),
@@ -290,7 +365,9 @@ class _ProviderCardState extends State<_ProviderCard> {
   @override
   Widget build(BuildContext context) {
     final p = widget.provider;
-    final initial = p.displayName.isNotEmpty ? p.displayName[0].toUpperCase() : '?';
+    final initial = p.displayName.isNotEmpty
+        ? p.displayName[0].toUpperCase()
+        : '?';
 
     return Material(
       color: Colors.white,
@@ -328,15 +405,45 @@ class _ProviderCardState extends State<_ProviderCard> {
                           ? CachedNetworkImage(
                               imageUrl: p.avatar,
                               fit: BoxFit.cover,
-                              placeholder: (_, __) => Center(child: Text(initial, style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.w600, color: Colors.white))),
+                              placeholder: (_, __) => Center(
+                                child: Text(
+                                  initial,
+                                  style: TextStyle(
+                                    fontSize: 20.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                               errorWidget: (_, __, ___) {
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (mounted) setState(() => _imageError = true);
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  if (mounted)
+                                    setState(() => _imageError = true);
                                 });
-                                return Center(child: Text(initial, style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.w600, color: Colors.white)));
+                                return Center(
+                                  child: Text(
+                                    initial,
+                                    style: TextStyle(
+                                      fontSize: 20.sp,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                );
                               },
                             )
-                          : Center(child: Text(initial, style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.w600, color: Colors.white))),
+                          : Center(
+                              child: Text(
+                                initial,
+                                style: TextStyle(
+                                  fontSize: 20.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                   SizedBox(width: 12.w),
@@ -346,25 +453,55 @@ class _ProviderCardState extends State<_ProviderCard> {
                       children: [
                         Text(
                           p.displayName,
-                          style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: Colors.black87),
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
                         ),
                         SizedBox(height: 4.h),
                         Row(
                           children: [
-                            Icon(Icons.star, size: 16.sp, color: const Color(0xFFFBBF24)),
+                            Icon(
+                              Icons.star,
+                              size: 16.sp,
+                              color: const Color(0xFFFBBF24),
+                            ),
                             SizedBox(width: 4.w),
-                            Text(p.rating.toString(), style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500, color: Colors.black87)),
+                            Text(
+                              p.rating.toString(),
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
                             SizedBox(width: 8.w),
-                            Text('•', style: TextStyle(fontSize: 12.sp, color: Colors.grey)),
+                            Text(
+                              '•',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: Colors.grey,
+                              ),
+                            ),
                             SizedBox(width: 8.w),
-                            Text('${p.reviewCount} reviews', style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade600)),
+                            Text(
+                              '${p.reviewCount} reviews',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
                           ],
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 6.h,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFDCFCE7),
                       borderRadius: BorderRadius.circular(999.r),
@@ -375,10 +512,20 @@ class _ProviderCardState extends State<_ProviderCard> {
                         Container(
                           width: 6.w,
                           height: 6.h,
-                          decoration: const BoxDecoration(color: Color(0xFF22C55E), shape: BoxShape.circle),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF22C55E),
+                            shape: BoxShape.circle,
+                          ),
                         ),
                         SizedBox(width: 6.w),
-                        Text('Available', style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500, color: const Color(0xFF15803D))),
+                        Text(
+                          'Available',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF15803D),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -393,9 +540,19 @@ class _ProviderCardState extends State<_ProviderCard> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.access_time, size: 16.sp, color: Colors.grey.shade600),
+                    Icon(
+                      Icons.access_time,
+                      size: 16.sp,
+                      color: Colors.grey.shade600,
+                    ),
                     SizedBox(width: 8.w),
-                    Text(p.responseTime, style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade700)),
+                    Text(
+                      p.responseTime,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
                   ],
                 ),
               ),

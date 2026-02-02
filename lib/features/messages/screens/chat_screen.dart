@@ -28,17 +28,14 @@ class ChatMessage {
   final String timestamp;
   final bool sent;
   final bool read;
+
   /// Optional image URL for photo messages (displayed in bubble via CachedNetworkImage).
   final String? imageUrl;
 }
 
 /// Chat partner info for header.
 class ChatPartner {
-  const ChatPartner({
-    required this.name,
-    this.avatar,
-    this.isOnline = true,
-  });
+  const ChatPartner({required this.name, this.avatar, this.isOnline = true});
   final String name;
   final String? avatar;
   final bool isOnline;
@@ -128,9 +125,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => NotificationsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            NotificationsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -183,7 +179,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       setState(() {
         _chatPartner = ChatPartner(
           name: booking.providerName,
-          avatar: booking.providerAvatar.isNotEmpty ? booking.providerAvatar : null,
+          avatar: booking.providerAvatar.isNotEmpty
+              ? booking.providerAvatar
+              : null,
           isOnline: true,
         );
         _messages = _generateBookingConversation(booking);
@@ -221,7 +219,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ChatMessage(
         id: '3',
         senderId: 'provider',
-        content: 'I have openings on Tuesday and Thursday afternoon. Would either of those work for you?',
+        content:
+            'I have openings on Tuesday and Thursday afternoon. Would either of those work for you?',
         timestamp: fmt(now.subtract(const Duration(minutes: 40))),
         sent: true,
         read: true,
@@ -264,49 +263,59 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (status == BookingStatus.confirmed ||
         status == BookingStatus.inProgress ||
         status == BookingStatus.completed) {
-      list.add(ChatMessage(
-        id: '3',
-        senderId: 'provider',
-        content:
-            "I've confirmed your appointment for ${booking.scheduledDate} at ${booking.scheduledTime}. See you then!",
-        timestamp: fmt(now.subtract(const Duration(hours: 1))),
-        sent: true,
-        read: true,
-      ));
+      list.add(
+        ChatMessage(
+          id: '3',
+          senderId: 'provider',
+          content:
+              "I've confirmed your appointment for ${booking.scheduledDate} at ${booking.scheduledTime}. See you then!",
+          timestamp: fmt(now.subtract(const Duration(hours: 1))),
+          sent: true,
+          read: true,
+        ),
+      );
     }
     if (status == BookingStatus.inProgress) {
-      list.add(ChatMessage(
-        id: '4',
-        senderId: 'provider',
-        content: "I'm on my way to your location now!",
-        timestamp: fmt(now.subtract(const Duration(minutes: 30))),
-        sent: true,
-        read: true,
-      ));
+      list.add(
+        ChatMessage(
+          id: '4',
+          senderId: 'provider',
+          content: "I'm on my way to your location now!",
+          timestamp: fmt(now.subtract(const Duration(minutes: 30))),
+          sent: true,
+          read: true,
+        ),
+      );
     }
     if (status == BookingStatus.completed) {
-      list.add(ChatMessage(
-        id: '4',
-        senderId: 'provider',
-        content: 'Service completed! Thank you for choosing us.',
-        timestamp: fmt(now.subtract(const Duration(minutes: 15))),
-        sent: true,
-        read: true,
-      ));
-      list.add(ChatMessage(
-        id: '5',
-        senderId: 'user',
-        content: 'Thank you! Great service.',
-        timestamp: fmt(now.subtract(const Duration(minutes: 10))),
-        sent: true,
-        read: true,
-      ));
+      list.add(
+        ChatMessage(
+          id: '4',
+          senderId: 'provider',
+          content: 'Service completed! Thank you for choosing us.',
+          timestamp: fmt(now.subtract(const Duration(minutes: 15))),
+          sent: true,
+          read: true,
+        ),
+      );
+      list.add(
+        ChatMessage(
+          id: '5',
+          senderId: 'user',
+          content: 'Thank you! Great service.',
+          timestamp: fmt(now.subtract(const Duration(minutes: 10))),
+          sent: true,
+          read: true,
+        ),
+      );
     }
     return list;
   }
 
   String _formatTime(DateTime date) {
-    final hour = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+    final hour = date.hour > 12
+        ? date.hour - 12
+        : (date.hour == 0 ? 12 : date.hour);
     final period = date.hour >= 12 ? 'PM' : 'AM';
     final min = date.minute.toString().padLeft(2, '0');
     return '$hour:$min $period';
@@ -325,12 +334,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Simple contact attempt detection (phone, email, common phrases).
-  ({bool isViolation, String? violationType}) _detectContactAttempt(String text) {
+  ({bool isViolation, String? violationType}) _detectContactAttempt(
+    String text,
+  ) {
     final lower = text.toLowerCase();
     final phone = RegExp(r'\+?\d{10,}|\d{3}[-.\s]?\d{3}[-.\s]?\d{4}');
     final email = RegExp(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
-    if (phone.hasMatch(text)) return (isViolation: true, violationType: 'phone');
-    if (email.hasMatch(text)) return (isViolation: true, violationType: 'email');
+    if (phone.hasMatch(text))
+      return (isViolation: true, violationType: 'phone');
+    if (email.hasMatch(text))
+      return (isViolation: true, violationType: 'email');
     if (lower.contains('my number is') ||
         lower.contains('call me at') ||
         lower.contains('email me at')) {
@@ -359,7 +372,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (detection.isViolation) {
       setState(() {
         _showWarning = true;
-        if (detection.violationType != null) _warningType = detection.violationType!;
+        if (detection.violationType != null)
+          _warningType = detection.violationType!;
       });
       _showContactWarningDialog();
       return;
@@ -381,9 +395,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
     _scrollToBottom();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Message sent')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Message sent')));
 
     // Simulate typing and reply
     if (DateTime.now().millisecondsSinceEpoch % 3 != 0) {
@@ -408,7 +422,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ChatMessage(
               id: (DateTime.now().millisecondsSinceEpoch + 1).toString(),
               senderId: 'provider',
-              content: responses[DateTime.now().millisecondsSinceEpoch % responses.length],
+              content:
+                  responses[DateTime.now().millisecondsSinceEpoch %
+                      responses.length],
               timestamp: _formatTime(DateTime.now()),
               sent: true,
               read: false,
@@ -427,9 +443,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onImage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Image sharing coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Image sharing coming soon')));
   }
 
   void _showContactWarningDialog() {
@@ -442,8 +458,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           type == 'phone'
               ? 'Sharing phone numbers is not allowed in chat. Please use the app to communicate.'
               : type == 'email'
-                  ? 'Sharing email addresses is not allowed in chat. Please use the app to communicate.'
-                  : 'Please avoid sharing contact details outside the app.',
+              ? 'Sharing email addresses is not allowed in chat. Please use the app to communicate.'
+              : 'Please avoid sharing contact details outside the app.',
         ),
         actions: [
           TextButton(
@@ -466,76 +482,76 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   @override
- @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: _bgBlue,
-    resizeToAvoidBottomInset: true,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bgBlue,
+      resizeToAvoidBottomInset: true,
 
-    // ✅ Move nav here (NOT inside body Column)
-    bottomNavigationBar: CustomerBottomNavBar(
-      currentIndex: 3,
-      onTabTap: _onNavTabTap,
-    ),
+      // ✅ Move nav here (NOT inside body Column)
+      bottomNavigationBar: CustomerBottomNavBar(
+        currentIndex: 3,
+        onTabTap: _onNavTabTap,
+      ),
 
-    body: Column(
-      children: [
-        CustomerHeader(
-          selectedTownName: widget.selectedTownName ?? _selectedTownName,
-          onChangeTown: _onChangeTown,
-          onNotifications: _onNotifications,
-        ),
+      body: Column(
+        children: [
+          CustomerHeader(
+            selectedTownName: widget.selectedTownName ?? _selectedTownName,
+            onChangeTown: _onChangeTown,
+            onNotifications: _onNotifications,
+          ),
 
-        Expanded(
-          child: _loading
-              ? Center(
-                  child: SizedBox(
-                    width: 48.w,
-                    height: 48.h,
-                    child: const CircularProgressIndicator(
-                      strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                )
-              : Column(
-                  children: [
-                    _buildHeader(_chatPartner),
-
-                    Expanded(
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        padding: EdgeInsets.only(
-                          left: 16.w,
-                          right: 16.w,
-                          top: 12.h,
-                          bottom: 4.h,
-                        ),
-                        itemCount: _messages.length + (_isTyping ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (_isTyping && index == _messages.length) {
-                            return _buildTypingIndicator(_chatPartner);
-                          }
-                          return _buildMessageBubble(
-                            _messages[index],
-                            _chatPartner,
-                            index > 0 &&
-                                _messages[index - 1].senderId ==
-                                    _messages[index].senderId,
-                          );
-                        },
+          Expanded(
+            child: _loading
+                ? Center(
+                    child: SizedBox(
+                      width: 48.w,
+                      height: 48.h,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     ),
+                  )
+                : Column(
+                    children: [
+                      _buildHeader(_chatPartner),
 
-                    // ✅ Input bar stays in body
-                    _buildInputBar(),
-                  ],
-                ),
-        ),
-      ],
-    ),
-  );
-}
+                      Expanded(
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          padding: EdgeInsets.only(
+                            left: 16.w,
+                            right: 16.w,
+                            top: 12.h,
+                            bottom: 4.h,
+                          ),
+                          itemCount: _messages.length + (_isTyping ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (_isTyping && index == _messages.length) {
+                              return _buildTypingIndicator(_chatPartner);
+                            }
+                            return _buildMessageBubble(
+                              _messages[index],
+                              _chatPartner,
+                              index > 0 &&
+                                  _messages[index - 1].senderId ==
+                                      _messages[index].senderId,
+                            );
+                          },
+                        ),
+                      ),
+
+                      // ✅ Input bar stays in body
+                      _buildInputBar(),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildHeader(ChatPartner? partner) {
     return Container(
@@ -552,13 +568,19 @@ Widget build(BuildContext context) {
                 if (widget.onBack != null) return;
                 if (mounted) Navigator.of(context).pop();
               },
-              icon: Icon(Icons.chevron_left, size: 28.sp, color: const Color(0xFF374151)),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.transparent,
+              icon: Icon(
+                Icons.chevron_left,
+                size: 28.sp,
+                color: const Color(0xFF374151),
               ),
+              style: IconButton.styleFrom(backgroundColor: Colors.transparent),
             ),
             SizedBox(width: 12.w),
-            _buildAvatar(partner?.avatar, partner?.name ?? 'Chat Partner', 44.r),
+            _buildAvatar(
+              partner?.avatar,
+              partner?.name ?? 'Chat Partner',
+              44.r,
+            ),
             SizedBox(width: 12.w),
             Expanded(
               child: Column(
@@ -599,7 +621,10 @@ Widget build(BuildContext context) {
                       ] else
                         Text(
                           'Offline',
-                          style: TextStyle(fontSize: 12.sp, color: const Color(0xFF6B7280)),
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: const Color(0xFF6B7280),
+                          ),
                         ),
                     ],
                   ),
@@ -608,7 +633,11 @@ Widget build(BuildContext context) {
             ),
             IconButton(
               onPressed: () {},
-              icon: Icon(Icons.more_vert, size: 24.sp, color: const Color(0xFF4B5563)),
+              icon: Icon(
+                Icons.more_vert,
+                size: 24.sp,
+                color: const Color(0xFF4B5563),
+              ),
             ),
           ],
         ),
@@ -661,12 +690,18 @@ Widget build(BuildContext context) {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage msg, ChatPartner? partner, bool hideAvatar) {
+  Widget _buildMessageBubble(
+    ChatMessage msg,
+    ChatPartner? partner,
+    bool hideAvatar,
+  ) {
     final isUser = msg.senderId == 'user';
     return Padding(
       padding: EdgeInsets.only(bottom: 15.h),
       child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser)
@@ -690,7 +725,9 @@ Widget build(BuildContext context) {
                       )
                     : null,
                 color: isUser ? null : Colors.white,
-                border: isUser ? null : Border.all(color: const Color(0xFFF3F4F6)),
+                border: isUser
+                    ? null
+                    : Border.all(color: const Color(0xFFF3F4F6)),
                 borderRadius: BorderRadius.circular(16.r),
                 boxShadow: [
                   BoxShadow(
@@ -701,7 +738,9 @@ Widget build(BuildContext context) {
                 ],
               ),
               child: Column(
-                crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isUser
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (msg.imageUrl != null && msg.imageUrl!.isNotEmpty) ...[
@@ -722,17 +761,23 @@ Widget build(BuildContext context) {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  isUser ? Colors.white70 : const Color(0xFF6B7280),
+                                  isUser
+                                      ? Colors.white70
+                                      : const Color(0xFF6B7280),
                                 ),
                               ),
                             ),
                           ),
                           errorWidget: (_, __, ___) => Container(
-                            color: isUser ? Colors.white24 : const Color(0xFFF3F4F6),
+                            color: isUser
+                                ? Colors.white24
+                                : const Color(0xFFF3F4F6),
                             child: Icon(
                               Icons.broken_image_outlined,
                               size: 32.sp,
-                              color: isUser ? Colors.white70 : const Color(0xFF9CA3AF),
+                              color: isUser
+                                  ? Colors.white70
+                                  : const Color(0xFF9CA3AF),
                             ),
                           ),
                         ),
@@ -752,13 +797,17 @@ Widget build(BuildContext context) {
                   SizedBox(height: 6.h),
                   Row(
                     mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    mainAxisAlignment: isUser
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
                     children: [
                       Text(
                         msg.timestamp,
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: isUser ? Colors.white70 : const Color(0xFF6B7280),
+                          color: isUser
+                              ? Colors.white70
+                              : const Color(0xFF6B7280),
                         ),
                       ),
                       if (isUser) ...[
@@ -776,8 +825,7 @@ Widget build(BuildContext context) {
             ),
           ),
           if (isUser) SizedBox(width: 8.w),
-          if (isUser)
-            const SizedBox(width: 32, height: 32),
+          if (isUser) const SizedBox(width: 32, height: 32),
         ],
       ),
     );
@@ -840,26 +888,38 @@ Widget build(BuildContext context) {
   Widget _buildInputBar() {
     return Container(
       color: Colors.white,
-  padding: EdgeInsets.fromLTRB(16.w, 5.h, 16.w, 8.h),
+      padding: EdgeInsets.fromLTRB(16.w, 5.h, 16.w, 8.h),
 
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           IconButton(
             onPressed: _onAttachment,
-            icon: Icon(Icons.attach_file, size: 22.sp, color: const Color(0xFF4B5563)),
+            icon: Icon(
+              Icons.attach_file,
+              size: 22.sp,
+              color: const Color(0xFF4B5563),
+            ),
             style: IconButton.styleFrom(
               backgroundColor: const Color(0xFFF3F4F6),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
             ),
           ),
           SizedBox(width: 8.w),
           IconButton(
             onPressed: _onImage,
-            icon: Icon(Icons.image_outlined, size: 22.sp, color: const Color(0xFF4B5563)),
+            icon: Icon(
+              Icons.image_outlined,
+              size: 22.sp,
+              color: const Color(0xFF4B5563),
+            ),
             style: IconButton.styleFrom(
               backgroundColor: const Color(0xFFF3F4F6),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
             ),
           ),
           SizedBox(width: 8.w),
@@ -870,7 +930,10 @@ Widget build(BuildContext context) {
               onSubmitted: (_) => _sendMessage(),
               decoration: InputDecoration(
                 hintText: 'Type a message...',
-                hintStyle: TextStyle(fontSize: 14.sp, color: const Color(0xFF9CA3AF)),
+                hintStyle: TextStyle(
+                  fontSize: 14.sp,
+                  color: const Color(0xFF9CA3AF),
+                ),
                 filled: true,
                 fillColor: const Color(0xFFF9FAFB),
                 border: OutlineInputBorder(
@@ -885,7 +948,10 @@ Widget build(BuildContext context) {
                   borderRadius: BorderRadius.circular(16.r),
                   borderSide: const BorderSide(color: _gradientStart, width: 2),
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16.w,
+                  vertical: 6.h,
+                ),
               ),
               style: TextStyle(fontSize: 14.sp, color: const Color(0xFF111827)),
               maxLines: 4,
@@ -912,7 +978,9 @@ Widget build(BuildContext context) {
                           end: Alignment.centerRight,
                           colors: [_gradientStart, _gradientEnd],
                         ),
-                  color: _messageController.text.trim().isEmpty ? const Color(0xFFE5E7EB) : null,
+                  color: _messageController.text.trim().isEmpty
+                      ? const Color(0xFFE5E7EB)
+                      : null,
                   borderRadius: BorderRadius.circular(16.r),
                 ),
                 child: Icon(

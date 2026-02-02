@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:renizo/core/constants/api_control/auth_api.dart';
 import 'package:renizo/core/constants/api_control/global_api.dart';
 
 /// Response model for signup API
@@ -97,6 +98,38 @@ class Tokens {
 
 /// Auth Service for API calls
 class AuthService {
+  /// Login – POST /api/v1/auth/login with email + password.
+  /// Response has same shape as signup (status, message, data.user, data.tokens).
+  static Future<SignupResponse> login({
+    required String email,
+    required String password,
+  }) async {
+    final url = Uri.parse(AuthAPIController.authLogin);
+    final body = jsonEncode({
+      'email': email,
+      'password': password,
+    });
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      final jsonResponse = jsonDecode(response.body);
+      return SignupResponse.fromJson(jsonResponse);
+    } else {
+      final errorBody = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : {'message': 'Login failed'};
+      throw Exception(errorBody['message'] ?? 'Login failed');
+    }
+  }
+
   /// Signup user
   static Future<SignupResponse> signup({
     required String fullName,

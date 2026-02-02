@@ -103,9 +103,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => NotificationsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            NotificationsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -129,10 +128,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
     setState(() => _loading = true);
     final bookings = await loadBookingsForCustomer(widget.customerId);
     if (!mounted) return;
-    final active = bookings.where((b) => b.status != BookingStatus.cancelled).toList();
+    final active = bookings
+        .where((b) => b.status != BookingStatus.cancelled)
+        .toList();
 
     final lastMessages = {
-      BookingStatus.pending: "Thanks for booking! I'll confirm the details shortly.",
+      BookingStatus.pending:
+          "Thanks for booking! I'll confirm the details shortly.",
       BookingStatus.confirmed: "See you on the scheduled date!",
       BookingStatus.inProgress: "I'm on my way to your location.",
       BookingStatus.completed: 'Thanks for choosing our service!',
@@ -152,23 +154,38 @@ class _MessagesScreenState extends State<MessagesScreen> {
       } else if (diff.inHours < 48) {
         timeAgo = 'Yesterday';
       } else {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const months = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
         timeAgo = '${months[dt.month - 1]} ${dt.day}';
       }
 
-      chats.add(ChatListItem(
-        id: 'chat-${booking.id}',
-        bookingId: booking.id,
-        providerId: booking.id,
-        providerName: booking.providerName,
-        providerAvatar: booking.providerAvatar,
-        categoryName: booking.categoryName,
-        lastMessage: lastMessages[booking.status] ?? 'Message received',
-        lastMessageTime: dt,
-        timeAgo: timeAgo,
-        unreadCount: booking.status == BookingStatus.pending ? 1 : 0,
-        bookingStatus: booking.status,
-      ));
+      chats.add(
+        ChatListItem(
+          id: 'chat-${booking.id}',
+          bookingId: booking.id,
+          providerId: booking.id,
+          providerName: booking.providerName,
+          providerAvatar: booking.providerAvatar,
+          categoryName: booking.categoryName,
+          lastMessage: lastMessages[booking.status] ?? 'Message received',
+          lastMessageTime: dt,
+          timeAgo: timeAgo,
+          unreadCount: booking.status == BookingStatus.pending ? 1 : 0,
+          bookingStatus: booking.status,
+        ),
+      );
     }
     chats.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
 
@@ -229,7 +246,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           userRole: 'customer',
           providerId: chat.providerId,
           providerName: chat.providerName,
-          providerAvatar: chat.providerAvatar.isNotEmpty ? chat.providerAvatar : null,
+          providerAvatar: chat.providerAvatar.isNotEmpty
+              ? chat.providerAvatar
+              : null,
           onBack: () => Navigator.of(context).pop(),
         ),
       ),
@@ -282,7 +301,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                 _chats.isEmpty
                                     ? 'No active conversations'
                                     : '${_chats.length} active conversation${_chats.length == 1 ? '' : 's'}',
-                                style: TextStyle(fontSize: 14.sp, color: Colors.white.withOpacity(0.8)),
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
                               ),
                               if (_chats.isNotEmpty) ...[
                                 SizedBox(height: 16.h),
@@ -290,25 +312,45 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                   controller: _searchController,
                                   decoration: InputDecoration(
                                     hintText: 'Search messages...',
-                                    hintStyle: TextStyle(fontSize: 14.sp, color: const Color(0xFF9CA3AF)),
-                                    prefixIcon: Icon(Icons.search, size: 20.sp, color: const Color(0xFF9CA3AF)),
+                                    hintStyle: TextStyle(
+                                      fontSize: 14.sp,
+                                      color: const Color(0xFF9CA3AF),
+                                    ),
+                                    prefixIcon: Icon(
+                                      Icons.search,
+                                      size: 20.sp,
+                                      color: const Color(0xFF9CA3AF),
+                                    ),
                                     filled: true,
                                     fillColor: Colors.white,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12.r),
-                                      borderSide: const BorderSide(color: Color(0xFFF3F4F6)),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFFF3F4F6),
+                                      ),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12.r),
-                                      borderSide: const BorderSide(color: Color(0xFFF3F4F6)),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFFF3F4F6),
+                                      ),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12.r),
-                                      borderSide: const BorderSide(color: Color(0xFF408AF1), width: 2),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF408AF1),
+                                        width: 2,
+                                      ),
                                     ),
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12.w,
+                                      vertical: 12.h,
+                                    ),
                                   ),
-                                  style: TextStyle(fontSize: 14.sp, color: Colors.black87),
+                                  style: TextStyle(
+                                    fontSize: 14.sp,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ],
                             ],
@@ -318,14 +360,23 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         Expanded(
                           child: _filteredChats.isNotEmpty
                               ? ListView.builder(
-                                  padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
+                                  padding: EdgeInsets.fromLTRB(
+                                    16.w,
+                                    0,
+                                    16.w,
+                                    16.h,
+                                  ),
                                   itemCount: _filteredChats.length,
                                   itemBuilder: (context, index) {
                                     final chat = _filteredChats[index];
                                     return _ChatCard(
                                       chat: chat,
-                                      statusColors: _statusColors(chat.bookingStatus),
-                                      statusLabel: _statusLabel(chat.bookingStatus),
+                                      statusColors: _statusColors(
+                                        chat.bookingStatus,
+                                      ),
+                                      statusLabel: _statusLabel(
+                                        chat.bookingStatus,
+                                      ),
                                       onTap: () => _onSelectChat(chat),
                                     );
                                   },
@@ -355,7 +406,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 color: const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(16.r),
               ),
-              child: Icon(Icons.chat_bubble_outline, size: 40.sp, color: const Color(0xFF9CA3AF)),
+              child: Icon(
+                Icons.chat_bubble_outline,
+                size: 40.sp,
+                color: const Color(0xFF9CA3AF),
+              ),
             ),
             SizedBox(height: 16.h),
             Text(
@@ -372,7 +427,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
               _searchQuery.isEmpty
                   ? 'Book a service to start chatting with providers'
                   : 'Try searching with different keywords',
-              style: TextStyle(fontSize: 14.sp, color: AllColor.mutedForeground),
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: AllColor.mutedForeground,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -397,7 +455,9 @@ class _ChatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = chat.providerName.isNotEmpty ? chat.providerName[0].toUpperCase() : '?';
+    final initial = chat.providerName.isNotEmpty
+        ? chat.providerName[0].toUpperCase()
+        : '?';
 
     return Padding(
       padding: EdgeInsets.only(bottom: 12.h),
@@ -425,8 +485,10 @@ class _ChatCard extends StatelessWidget {
                               width: 56.w,
                               height: 56.h,
                               fit: BoxFit.cover,
-                              placeholder: (_, __) => _avatarPlaceholder(initial),
-                              errorWidget: (_, __, ___) => _avatarPlaceholder(initial),
+                              placeholder: (_, __) =>
+                                  _avatarPlaceholder(initial),
+                              errorWidget: (_, __, ___) =>
+                                  _avatarPlaceholder(initial),
                             )
                           : _avatarPlaceholder(initial),
                     ),
@@ -441,7 +503,11 @@ class _ChatCard extends StatelessWidget {
                             color: Color(0xFF408AF1),
                             shape: BoxShape.circle,
                             boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
                             ],
                           ),
                           child: Center(
@@ -482,7 +548,10 @@ class _ChatCard extends StatelessWidget {
                                 ),
                                 Text(
                                   chat.categoryName,
-                                  style: TextStyle(fontSize: 12.sp, color: const Color(0xFF6B7280)),
+                                  style: TextStyle(
+                                    fontSize: 12.sp,
+                                    color: const Color(0xFF6B7280),
+                                  ),
                                 ),
                               ],
                             ),
@@ -492,11 +561,17 @@ class _ChatCard extends StatelessWidget {
                             children: [
                               Text(
                                 chat.timeAgo,
-                                style: TextStyle(fontSize: 12.sp, color: const Color(0xFF6B7280)),
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: const Color(0xFF6B7280),
+                                ),
                               ),
                               SizedBox(height: 4.h),
                               Container(
-                                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8.w,
+                                  vertical: 2.h,
+                                ),
                                 decoration: BoxDecoration(
                                   color: statusColors.$1,
                                   borderRadius: BorderRadius.circular(999),
@@ -519,8 +594,12 @@ class _ChatCard extends StatelessWidget {
                         chat.lastMessage,
                         style: TextStyle(
                           fontSize: 14.sp,
-                          color: chat.unreadCount > 0 ? const Color(0xFF111827) : const Color(0xFF4B5563),
-                          fontWeight: chat.unreadCount > 0 ? FontWeight.w500 : FontWeight.normal,
+                          color: chat.unreadCount > 0
+                              ? const Color(0xFF111827)
+                              : const Color(0xFF4B5563),
+                          fontWeight: chat.unreadCount > 0
+                              ? FontWeight.w500
+                              : FontWeight.normal,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -529,7 +608,11 @@ class _ChatCard extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: 8.w),
-                Icon(Icons.chevron_right, size: 20.sp, color: const Color(0xFF9CA3AF)),
+                Icon(
+                  Icons.chevron_right,
+                  size: 20.sp,
+                  color: const Color(0xFF9CA3AF),
+                ),
               ],
             ),
           ),

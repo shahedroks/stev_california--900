@@ -54,7 +54,8 @@ class NotificationsScreen extends ConsumerStatefulWidget {
       id: '1',
       type: NotificationItemType.booking,
       title: 'Booking Confirmed',
-      message: "Mike's Plumbing confirmed your appointment for tomorrow at 2:00 PM",
+      message:
+          "Mike's Plumbing confirmed your appointment for tomorrow at 2:00 PM",
       timestamp: '5 min ago',
       unread: true,
     ),
@@ -85,7 +86,8 @@ class NotificationsScreen extends ConsumerStatefulWidget {
   ];
 
   @override
-  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
@@ -139,7 +141,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final unreadCount = NotificationsScreen._notifications.where((n) => n.unread).length;
+    final unreadCount = NotificationsScreen._notifications
+        .where((n) => n.unread)
+        .length;
     final notifications = NotificationsScreen._notifications;
 
     return Scaffold(
@@ -153,7 +157,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           CustomerHeader(
             leading: IconButton(
               onPressed: _onBack,
-              icon: Icon(Icons.arrow_back_ios_new, size: 22.sp, color: Colors.white),
+              icon: Icon(
+                Icons.arrow_back_ios_new,
+                size: 22.sp,
+                color: Colors.white,
+              ),
               style: IconButton.styleFrom(
                 backgroundColor: Colors.white.withOpacity(0.1),
                 shape: RoundedRectangleBorder(
@@ -170,7 +178,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
             child: notifications.isEmpty
                 ? _buildEmptyState(context)
                 : ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 16.h,
+                    ),
                     itemCount: notifications.length,
                     itemBuilder: (context, index) {
                       return Padding(
@@ -191,7 +202,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
       decoration: BoxDecoration(
         color: _bgBlue,
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,7 +222,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               if (unreadCount > 0) ...[
                 SizedBox(width: 8.w),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10.w,
+                    vertical: 4.h,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red,
                     borderRadius: BorderRadius.circular(12.r),
@@ -254,7 +270,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 borderRadius: BorderRadius.circular(16.r),
                 border: Border.all(color: Colors.white.withOpacity(0.2)),
               ),
-              child: Icon(Icons.notifications_none, size: 40.sp, color: Colors.white.withOpacity(0.6)),
+              child: Icon(
+                Icons.notifications_none,
+                size: 40.sp,
+                color: Colors.white.withOpacity(0.6),
+              ),
             ),
             SizedBox(height: 16.h),
             Text(
@@ -288,19 +308,25 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (IconData icon, Color iconColor, Color bgColor) = _styleForType(item.type);
+    final (IconData icon, Color iconColor, Color bgColor) = _styleForType(
+      item.type,
+    );
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: item.unread ? const Color(0xFF408AF1).withOpacity(0.3) : const Color(0xFFE5E7EB),
+          color: item.unread
+              ? const Color(0xFF408AF1).withOpacity(0.3)
+              : const Color(0xFFE5E7EB),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: item.unread ? const Color(0xFF408AF1).withOpacity(0.08) : Colors.black.withOpacity(0.04),
+            color: item.unread
+                ? const Color(0xFF408AF1).withOpacity(0.08)
+                : Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -332,7 +358,9 @@ class _NotificationCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w600,
-                          color: item.unread ? const Color(0xFF111827) : const Color(0xFF374151),
+                          color: item.unread
+                              ? const Color(0xFF111827)
+                              : const Color(0xFF374151),
                         ),
                       ),
                     ),
@@ -376,13 +404,29 @@ class _NotificationCard extends StatelessWidget {
   (IconData, Color, Color) _styleForType(NotificationItemType type) {
     switch (type) {
       case NotificationItemType.booking:
-        return (Icons.calendar_today_outlined, const Color(0xFF2563EB), const Color(0xFFEFF6FF));
+        return (
+          Icons.calendar_today_outlined,
+          const Color(0xFF2563EB),
+          const Color(0xFFEFF6FF),
+        );
       case NotificationItemType.message:
-        return (Icons.message_outlined, const Color(0xFF7C3AED), const Color(0xFFF5F3FF));
+        return (
+          Icons.message_outlined,
+          const Color(0xFF7C3AED),
+          const Color(0xFFF5F3FF),
+        );
       case NotificationItemType.promotion:
-        return (Icons.trending_up, const Color(0xFFEA580C), const Color(0xFFFFF7ED));
+        return (
+          Icons.trending_up,
+          const Color(0xFFEA580C),
+          const Color(0xFFFFF7ED),
+        );
       case NotificationItemType.reminder:
-        return (Icons.schedule, const Color(0xFFCA8A04), const Color(0xFFFEFCE8));
+        return (
+          Icons.schedule,
+          const Color(0xFFCA8A04),
+          const Color(0xFFFEFCE8),
+        );
     }
   }
 }

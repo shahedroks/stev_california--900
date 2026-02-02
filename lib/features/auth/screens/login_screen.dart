@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:renizo/core/constants/color_control/all_color.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
+import 'package:renizo/features/auth/providers/auth_provider.dart';
 import 'package:renizo/features/auth/screens/register_screen.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
 import 'package:renizo/features/onboarding/screens/onboarding_slides_screen.dart';
 import 'package:renizo/features/seller/screens/provider_app_screen.dart';
 import 'package:renizo/features/town/screens/town_selection_screen.dart';
 
-/// Login – converted from React LoginScreen.tsx. Primary #2384F4 / AllColor.primary.
-class LoginScreen extends StatefulWidget {
+/// Login – API login; navigates by role (customer vs provider).
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
   static const String routeName = '/login';
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -96,33 +98,40 @@ class _LoginScreenState extends State<LoginScreen> {
   );
 
   Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _error = 'Please enter email and password');
+      return;
+    }
+
     setState(() {
       _error = null;
       _loading = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 800));
-    final email = _emailController.text.trim();
-    final password = _passwordController.text; // ignore: unused_local_variable
-
-    final isProvider = _loginAsProvider;
-
-    await AuthLocalStorage.saveSession(
-      token: 'demo_token',
-      email: email,
-      userId: isProvider ? 'provider_1' : 'customer_1',
-      name: isProvider ? 'Demo Provider' : 'Demo Customer',
-      role: isProvider ? 'provider' : 'customer',
-      phone: '+1234567890',
-    );
+    await ref.read(loginProvider.notifier).login(
+          email: email,
+          password: password,
+        );
 
     if (!mounted) return;
 
+    final loginState = ref.read(loginProvider);
     setState(() => _loading = false);
+
+    if (loginState.error != null) {
+      setState(() => _error = loginState.error);
+      return;
+    }
+
+    if (!loginState.isSuccess) return;
 
     final user = await AuthLocalStorage.getCurrentUser();
     if (user == null) return;
 
+    // Navigate by role: provider -> provider app; customer -> onboarding/town/home
     if (user.isProvider) {
       context.go(ProviderAppScreen.routeName);
     } else {

@@ -31,16 +31,22 @@ class CustomerHomeScreen extends StatefulWidget {
 
   final String? userName;
   final String? selectedTownId;
+
   /// Display name for header location (e.g. "Terrace").
   final String? selectedTownName;
+
   /// Called when user taps "Create New Booking" (task submission flow).
   final VoidCallback? onCreateBooking;
+
   /// Called when user selects a service category (task submission flow).
   final void Function(ServiceCategory category)? onSelectCategory;
+
   /// Called when user selects a provider (provider profile / booking flow).
   final void Function(ProviderListItem provider)? onSelectProvider;
+
   /// Called when user taps location in header (change town).
   final VoidCallback? onChangeTown;
+
   /// Called when user taps notification bell in header.
   final VoidCallback? onNotifications;
 
@@ -55,6 +61,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   /// Main app background blue from CustomerApp.tsx (bg-[#2384F4]).
   static const Color _customerAppBackground = Color(0xFF2384F4);
+
   /// Create New Booking button blue from CustomerApp.tsx (bg-[#003E93]).
   static const Color _createBookingButtonBg = Color(0xFF003E93);
 
@@ -85,7 +92,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             if (!context.mounted) return;
             Navigator.of(context).pop();
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Finding providers for ${data.date} at ${data.address}')),
+              SnackBar(
+                content: Text(
+                  'Finding providers for ${data.date} at ${data.address}',
+                ),
+              ),
             );
           },
         ),
@@ -122,9 +133,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => NotificationsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            NotificationsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -133,7 +143,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _customerAppBackground,
-          resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: true,
       body: Column(
         children: [
           CustomerHeader(
@@ -147,63 +157,65 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 SliverToBoxAdapter(
                   child: WelcomeBanner(userName: widget.userName),
                 ),
-            // Quick Action: Create New Booking (from CustomerApp.tsx)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
-                child: Material(
-                  color: _createBookingButtonBg,
-                  borderRadius: BorderRadius.circular(16.r),
-                  shadowColor: _createBookingButtonBg.withOpacity(0.3),
-                  elevation: 8,
-                  child: InkWell(
-                    onTap: _onCreateBooking,
-                    borderRadius: BorderRadius.circular(16.r),
-                    child: Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(vertical: 16.h),
-                      alignment: Alignment.center,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '+',
-                            style: TextStyle(
-                              fontSize: 20.sp,
-                              fontWeight: FontWeight.w500,
-                              color: AllColor.white,
-                            ),
+                // Quick Action: Create New Booking (from CustomerApp.tsx)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
+                    child: Material(
+                      color: _createBookingButtonBg,
+                      borderRadius: BorderRadius.circular(16.r),
+                      shadowColor: _createBookingButtonBg.withOpacity(0.3),
+                      elevation: 8,
+                      child: InkWell(
+                        onTap: _onCreateBooking,
+                        borderRadius: BorderRadius.circular(16.r),
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(vertical: 16.h),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '+',
+                                style: TextStyle(
+                                  fontSize: 20.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: AllColor.white,
+                                ),
+                              ),
+                              SizedBox(width: 8.w),
+                              Text(
+                                'Create New Booking',
+                                style: TextStyle(
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: AllColor.white,
+                                ),
+                              ),
+                            ],
                           ),
-                          SizedBox(width: 8.w),
-                          Text(
-                            'Create New Booking',
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w500,
-                              color: AllColor.white,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: FeaturedProvidersWidget(
-                selectedTownId: widget.selectedTownId ?? _selectedTownId ?? '',
-                onSelectProvider: _onSelectProvider,
-                lightHeader: true,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: ServiceCategoriesWidget(
-                selectedTownId: widget.selectedTownId ?? _selectedTownId ?? '',
-                onSelectCategory: _onSelectCategory,
-                lightTitle: true,
-              ),
-            ),
+                SliverToBoxAdapter(
+                  child: FeaturedProvidersWidget(
+                    selectedTownId:
+                        widget.selectedTownId ?? _selectedTownId ?? '',
+                    onSelectProvider: _onSelectProvider,
+                    lightHeader: true,
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: ServiceCategoriesWidget(
+                    selectedTownId:
+                        widget.selectedTownId ?? _selectedTownId ?? '',
+                    onSelectCategory: _onSelectCategory,
+                    lightTitle: true,
+                  ),
+                ),
                 SliverToBoxAdapter(child: SizedBox(height: 25.h)),
               ],
             ),

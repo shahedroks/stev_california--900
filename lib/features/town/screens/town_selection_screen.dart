@@ -54,7 +54,13 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
   List<Town> get _filteredTowns {
     if (_searchQuery.isEmpty) return _towns;
     final q = _searchQuery.toLowerCase();
-    return _towns.where((t) => t.name.toLowerCase().contains(q) || t.state.toLowerCase().contains(q)).toList();
+    return _towns
+        .where(
+          (t) =>
+              t.name.toLowerCase().contains(q) ||
+              t.state.toLowerCase().contains(q),
+        )
+        .toList();
   }
 
   Future<void> _onContinue() async {
@@ -68,7 +74,10 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
     if (town == null) return;
     final user = await AuthLocalStorage.getCurrentUser();
     if (user != null) {
-      await AuthLocalStorage.setSelectedTown(user.id, '{"id":"${town.id}","name":"${town.name}","state":"${town.state}"}');
+      await AuthLocalStorage.setSelectedTown(
+        user.id,
+        '{"id":"${town.id}","name":"${town.name}","state":"${town.state}"}',
+      );
     }
     widget.onSelectTown(town);
   }
@@ -81,7 +90,9 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
         child: Center(
           child: Container(
             margin: EdgeInsets.symmetric(horizontal: 16.w),
-            constraints: BoxConstraints(maxHeight: 0.9 * MediaQuery.sizeOf(context).height),
+            constraints: BoxConstraints(
+              maxHeight: 0.9 * MediaQuery.sizeOf(context).height,
+            ),
             decoration: BoxDecoration(
               color: AllColor.primary,
               borderRadius: BorderRadius.circular(24.r),
@@ -102,9 +113,14 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
                     alignment: Alignment.topRight,
                     child: IconButton(
                       onPressed: () {
-                        if (_towns.isNotEmpty) widget.onSelectTown(_towns.first);
+                        if (_towns.isNotEmpty)
+                          widget.onSelectTown(_towns.first);
                       },
-                      icon: Icon(Icons.close, color: AllColor.white, size: 24.sp),
+                      icon: Icon(
+                        Icons.close,
+                        color: AllColor.white,
+                        size: 24.sp,
+                      ),
                     ),
                   ),
                 Padding(
@@ -118,7 +134,11 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
                           color: AllColor.white,
                           borderRadius: BorderRadius.circular(16.r),
                         ),
-                        child: Icon(Icons.location_on, size: 32.sp, color: AllColor.primary),
+                        child: Icon(
+                          Icons.location_on,
+                          size: 32.sp,
+                          color: AllColor.primary,
+                        ),
                       ),
                       SizedBox(height: 16.h),
                       Text(
@@ -147,20 +167,34 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
                     onChanged: (v) => setState(() => _searchQuery = v),
                     decoration: InputDecoration(
                       hintText: 'Search towns...',
-                      prefixIcon: Icon(Icons.search, color: AllColor.mutedForeground, size: 20.sp),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: AllColor.mutedForeground,
+                        size: 20.sp,
+                      ),
                       filled: true,
                       fillColor: AllColor.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.r),
-                        borderSide: BorderSide(color: AllColor.white.withOpacity(0.3)),
+                        borderSide: BorderSide(
+                          color: AllColor.white.withOpacity(0.3),
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.r),
-                        borderSide: BorderSide(color: AllColor.white.withOpacity(0.2)),
+                        borderSide: BorderSide(
+                          color: AllColor.white.withOpacity(0.2),
+                        ),
                       ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 14.h,
+                      ),
                     ),
-                    style: TextStyle(fontSize: 16.sp, color: AllColor.foreground),
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      color: AllColor.foreground,
+                    ),
                   ),
                 ),
                 SizedBox(height: 16.h),
@@ -168,11 +202,18 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
                   child: _loading
                       ? Padding(
                           padding: EdgeInsets.all(24.w),
-                          child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          ),
                         )
                       : ListView.builder(
                           shrinkWrap: true,
-                          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 8.h),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24.w,
+                            vertical: 8.h,
+                          ),
                           itemCount: _filteredTowns.length,
                           itemBuilder: (context, i) {
                             final town = _filteredTowns[i];
@@ -180,10 +221,13 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
                             return Padding(
                               padding: EdgeInsets.only(bottom: 12.h),
                               child: Material(
-                                color: selected ? AllColor.white : AllColor.white.withOpacity(0.15),
+                                color: selected
+                                    ? AllColor.white
+                                    : AllColor.white.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(16.r),
                                 child: InkWell(
-                                  onTap: () => setState(() => _selectedTownId = town.id),
+                                  onTap: () =>
+                                      setState(() => _selectedTownId = town.id),
                                   borderRadius: BorderRadius.circular(16.r),
                                   child: Padding(
                                     padding: EdgeInsets.all(16.w),
@@ -193,8 +237,14 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
                                           width: 40.w,
                                           height: 40.h,
                                           decoration: BoxDecoration(
-                                            color: selected ? AllColor.primary : AllColor.white.withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(12.r),
+                                            color: selected
+                                                ? AllColor.primary
+                                                : AllColor.white.withOpacity(
+                                                    0.2,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              12.r,
+                                            ),
                                           ),
                                           child: Icon(
                                             Icons.location_on,
@@ -205,21 +255,28 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
                                         SizedBox(width: 12.w),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 town.name,
                                                 style: TextStyle(
                                                   fontSize: 16.sp,
                                                   fontWeight: FontWeight.w500,
-                                                  color: selected ? AllColor.primary : AllColor.white,
+                                                  color: selected
+                                                      ? AllColor.primary
+                                                      : AllColor.white,
                                                 ),
                                               ),
                                               Text(
                                                 town.state,
                                                 style: TextStyle(
                                                   fontSize: 12.sp,
-                                                  color: selected ? AllColor.primary.withOpacity(0.8) : AllColor.white.withOpacity(0.8),
+                                                  color: selected
+                                                      ? AllColor.primary
+                                                            .withOpacity(0.8)
+                                                      : AllColor.white
+                                                            .withOpacity(0.8),
                                                 ),
                                               ),
                                             ],
@@ -230,14 +287,24 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
                                           height: 24.h,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: selected ? AllColor.primary : Colors.transparent,
+                                            color: selected
+                                                ? AllColor.primary
+                                                : Colors.transparent,
                                             border: Border.all(
-                                              color: selected ? AllColor.primary : AllColor.white.withOpacity(0.5),
+                                              color: selected
+                                                  ? AllColor.primary
+                                                  : AllColor.white.withOpacity(
+                                                      0.5,
+                                                    ),
                                               width: 2,
                                             ),
                                           ),
                                           child: selected
-                                              ? Icon(Icons.check, size: 14.sp, color: AllColor.white)
+                                              ? Icon(
+                                                  Icons.check,
+                                                  size: 14.sp,
+                                                  color: AllColor.white,
+                                                )
                                               : null,
                                         ),
                                       ],
@@ -259,10 +326,20 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
                         backgroundColor: AllColor.white,
                         foregroundColor: AllColor.primary,
                         padding: EdgeInsets.symmetric(vertical: 16.h),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-                        disabledBackgroundColor: AllColor.white.withOpacity(0.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.r),
+                        ),
+                        disabledBackgroundColor: AllColor.white.withOpacity(
+                          0.5,
+                        ),
                       ),
-                      child: Text('Continue', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600)),
+                      child: Text(
+                        'Continue',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),

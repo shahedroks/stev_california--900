@@ -149,9 +149,8 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => NotificationsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            NotificationsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -170,9 +169,9 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
 
   void _onContactSupport(String method) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Opening $method...')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Opening $method...')));
     }
   }
 
@@ -196,7 +195,11 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
           CustomerHeader(
             leading: IconButton(
               onPressed: _onBack,
-              icon: Icon(Icons.arrow_back_ios_new, size: 22.sp, color: Colors.white),
+              icon: Icon(
+                Icons.arrow_back_ios_new,
+                size: 22.sp,
+                color: Colors.white,
+              ),
               style: IconButton.styleFrom(
                 backgroundColor: Colors.white.withOpacity(0.1),
                 shape: RoundedRectangleBorder(
@@ -242,7 +245,9 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       decoration: BoxDecoration(
         color: _bgBlue,
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
       ),
       child: Row(
         children: [
@@ -266,7 +271,11 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
       decoration: InputDecoration(
         hintText: 'Search for help...',
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15.sp),
-        prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 22.sp),
+        prefixIcon: Icon(
+          Icons.search,
+          color: Colors.grey.shade400,
+          size: 22.sp,
+        ),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
@@ -320,7 +329,11 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
-                child: Icon(Icons.mail_outline, color: Colors.white, size: 26.sp),
+                child: Icon(
+                  Icons.mail_outline,
+                  color: Colors.white,
+                  size: 26.sp,
+                ),
               ),
               SizedBox(width: 12.w),
               Expanded(
@@ -346,7 +359,11 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                   ],
                 ),
               ),
-              Icon(Icons.open_in_new, color: Colors.white.withOpacity(0.7), size: 22.sp),
+              Icon(
+                Icons.open_in_new,
+                color: Colors.white.withOpacity(0.7),
+                size: 22.sp,
+              ),
             ],
           ),
         ),
@@ -362,7 +379,9 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
         for (final category in categories) ...[
           Builder(
             builder: (context) {
-              final categoryFaqs = filtered.where((f) => f.category == category).toList();
+              final categoryFaqs = filtered
+                  .where((f) => f.category == category)
+                  .toList();
               if (categoryFaqs.isEmpty) return const SizedBox.shrink();
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,7 +534,9 @@ class _FaqTile extends StatelessWidget {
                       ),
                     ),
                     Icon(
-                      isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      isExpanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
                       color: Colors.white.withOpacity(0.7),
                       size: 24.sp,
                     ),

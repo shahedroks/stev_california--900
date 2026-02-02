@@ -77,9 +77,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => NotificationsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            NotificationsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -110,9 +109,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Town updated')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Town updated')));
     }
   }
 
@@ -128,25 +127,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted) return;
     final user = _displayUser;
     if (user == null) return;
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (context) => EditProfileScreen(
-          user: user,
-          onBack: () => Navigator.of(context).pop(),
-        ),
-      ),
-    ).then((_) {
-      if (mounted) _loadUser();
-    });
+    Navigator.of(context)
+        .push<void>(
+          MaterialPageRoute<void>(
+            builder: (context) => EditProfileScreen(
+              user: user,
+              onBack: () => Navigator.of(context).pop(),
+            ),
+          ),
+        )
+        .then((_) {
+          if (mounted) _loadUser();
+        });
   }
 
   void _onPaymentMethods() {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => PaymentMethodsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            PaymentMethodsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -155,9 +155,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => SettingsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            SettingsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -166,9 +165,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => HelpSupportScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            HelpSupportScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -247,10 +245,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           Padding(
             padding: EdgeInsets.only(top: 16.h),
-            child: Container(
-              height: 1,
-              color: Colors.white.withOpacity(0.2),
-            ),
+            child: Container(height: 1, color: Colors.white.withOpacity(0.2)),
           ),
           Padding(
             padding: EdgeInsets.only(top: 16.h),
@@ -324,11 +319,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             )
-          : Icon(
-              Icons.person,
-              size: 40.sp,
-              color: Colors.white,
-            ),
+          : Icon(Icons.person, size: 40.sp, color: Colors.white),
     );
   }
 
@@ -396,16 +387,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     ];
     return Column(
-      children: items.map((item) => Padding(
-        padding: EdgeInsets.only(bottom: 8.h),
-        child: _MenuTile(
-          icon: item.icon,
-          label: item.label,
-          iconColor: item.iconColor,
-          iconBg: item.iconBg,
-          onTap: item.onTap,
-        ),
-      )).toList(),
+      children: items
+          .map(
+            (item) => Padding(
+              padding: EdgeInsets.only(bottom: 8.h),
+              child: _MenuTile(
+                icon: item.icon,
+                label: item.label,
+                iconColor: item.iconColor,
+                iconBg: item.iconBg,
+                onTap: item.onTap,
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 

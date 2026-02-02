@@ -25,7 +25,11 @@ class AppRouter {
         error: state.error,
         onRetry: () => context.go(initial),
         onReport: () {
-          GlobalSnackBar.show(context, title: "We're sorry", message: "Thanks, we'll look into this.");
+          GlobalSnackBar.show(
+            context,
+            title: "We're sorry",
+            message: "Thanks, we'll look into this.",
+          );
         },
       );
     },
@@ -61,6 +65,7 @@ class AppRouter {
               if (context.mounted) context.go(TownSelectionScreen.routeName);
             }();
           }
+
           return OnboardingSlidesScreen(onComplete: onComplete);
         },
       ),

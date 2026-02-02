@@ -51,7 +51,8 @@ class PaymentMethodsScreen extends ConsumerStatefulWidget {
   static const String routeName = '/payment-methods';
 
   @override
-  ConsumerState<PaymentMethodsScreen> createState() => _PaymentMethodsScreenState();
+  ConsumerState<PaymentMethodsScreen> createState() =>
+      _PaymentMethodsScreenState();
 }
 
 class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
@@ -111,9 +112,8 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => NotificationsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            NotificationsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -137,15 +137,17 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
   void _handleSetDefault(String id) {
     setState(() {
       _paymentMethods = _paymentMethods
-          .map((m) => PaymentMethodItem(
-                id: m.id,
-                type: m.type,
-                last4: m.last4,
-                expiryMonth: m.expiryMonth,
-                expiryYear: m.expiryYear,
-                isDefault: m.id == id,
-                holderName: m.holderName,
-              ))
+          .map(
+            (m) => PaymentMethodItem(
+              id: m.id,
+              type: m.type,
+              last4: m.last4,
+              expiryMonth: m.expiryMonth,
+              expiryYear: m.expiryYear,
+              isDefault: m.id == id,
+              holderName: m.holderName,
+            ),
+          )
           .toList();
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -180,7 +182,11 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              setState(() => _paymentMethods = _paymentMethods.where((m) => m.id != id).toList());
+              setState(
+                () => _paymentMethods = _paymentMethods
+                    .where((m) => m.id != id)
+                    .toList(),
+              );
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Payment method removed')),
@@ -203,7 +209,6 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
       const SnackBar(content: Text('Payment method added successfully')),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +251,9 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
       decoration: BoxDecoration(
         color: _bgBlue,
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -255,10 +262,16 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
             children: [
               IconButton(
                 onPressed: _onBack,
-                icon: Icon(Icons.arrow_back_ios_new, size: 22.sp, color: Colors.white),
+                icon: Icon(
+                  Icons.arrow_back_ios_new,
+                  size: 22.sp,
+                  color: Colors.white,
+                ),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
                 ),
               ),
               SizedBox(width: 12.w),
@@ -277,7 +290,9 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
             icon: Icon(Icons.add, size: 24.sp, color: Colors.white),
             style: IconButton.styleFrom(
               backgroundColor: Colors.white.withOpacity(0.1),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
             ),
           ),
         ],
@@ -313,7 +328,10 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
             SizedBox(height: 8.h),
             Text(
               'Add a payment method to start booking services',
-              style: TextStyle(fontSize: 14.sp, color: Colors.white.withOpacity(0.7)),
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: Colors.white.withOpacity(0.7),
+              ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 24.h),
@@ -324,7 +342,10 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
                 onTap: () => _setShowAddCard(true),
                 borderRadius: BorderRadius.circular(16.r),
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 14.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 24.w,
+                    vertical: 14.h,
+                  ),
                   child: Text(
                     'Add Payment Method',
                     style: TextStyle(
@@ -347,14 +368,16 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
       child: Column(
         children: [
-          ..._paymentMethods.map((method) => Padding(
-                padding: EdgeInsets.only(bottom: 16.h),
-                child: _CardTile(
-                  method: method,
-                  onSetDefault: _handleSetDefault,
-                  onDelete: _handleDelete,
-                ),
-              )),
+          ..._paymentMethods.map(
+            (method) => Padding(
+              padding: EdgeInsets.only(bottom: 16.h),
+              child: _CardTile(
+                method: method,
+                onSetDefault: _handleSetDefault,
+                onDelete: _handleDelete,
+              ),
+            ),
+          ),
           Material(
             color: Colors.transparent,
             child: InkWell(
@@ -365,7 +388,11 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
                 padding: EdgeInsets.symmetric(vertical: 24.h),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 2, strokeAlign: BorderSide.strokeAlignInside),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 2,
+                    strokeAlign: BorderSide.strokeAlignInside,
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -474,10 +501,16 @@ class _CardTile extends StatelessWidget {
                     ),
                     IconButton(
                       onPressed: () => onDelete(method.id),
-                      icon: Icon(Icons.delete_outline, size: 20.sp, color: const Color(0xFFFCA5A5)),
+                      icon: Icon(
+                        Icons.delete_outline,
+                        size: 20.sp,
+                        color: const Color(0xFFFCA5A5),
+                      ),
                       style: IconButton.styleFrom(
                         backgroundColor: Colors.red.withOpacity(0.2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
                       ),
                     ),
                   ],
@@ -485,7 +518,10 @@ class _CardTile extends StatelessWidget {
                 SizedBox(height: 8.h),
                 if (method.isDefault)
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.w,
+                      vertical: 4.h,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF10B981),
                       borderRadius: BorderRadius.circular(8.r),
@@ -595,9 +631,8 @@ class _AddCardScreenState extends State<AddCardScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => NotificationsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            NotificationsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -626,7 +661,9 @@ class _AddCardScreenState extends State<AddCardScreen> {
     final formatted = _formatCardNumber(value);
     if (formatted != _cardNumberController.text) {
       _cardNumberController.text = formatted;
-      _cardNumberController.selection = TextSelection.collapsed(offset: formatted.length);
+      _cardNumberController.selection = TextSelection.collapsed(
+        offset: formatted.length,
+      );
     }
   }
 
@@ -637,16 +674,20 @@ class _AddCardScreenState extends State<AddCardScreen> {
     final expiryYear = _expiryYearController.text.trim();
     final cvv = _cvvController.text.trim();
 
-    if (cardNumber.isEmpty || holderName.isEmpty || expiryMonth.isEmpty || expiryYear.isEmpty || cvv.isEmpty) {
+    if (cardNumber.isEmpty ||
+        holderName.isEmpty ||
+        expiryMonth.isEmpty ||
+        expiryYear.isEmpty ||
+        cvv.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
     if (cardNumber.length != 16) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid card number')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invalid card number')));
       return;
     }
 
@@ -693,38 +734,74 @@ class _AddCardScreenState extends State<AddCardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildField('Card Number', _cardNumberController, '1234 5678 9012 3456', 19, (v) => _onCardNumberChange(v)),
+                  _buildField(
+                    'Card Number',
+                    _cardNumberController,
+                    '1234 5678 9012 3456',
+                    19,
+                    (v) => _onCardNumberChange(v),
+                  ),
                   SizedBox(height: 16.h),
-                  _buildField('Cardholder Name', _holderNameController, 'John Doe', null, null),
+                  _buildField(
+                    'Cardholder Name',
+                    _holderNameController,
+                    'John Doe',
+                    null,
+                    null,
+                  ),
                   SizedBox(height: 16.h),
                   Row(
                     children: [
                       Expanded(
-                        child: _buildField('Month', _expiryMonthController, 'MM', 2, (v) {
-                          final d = _digitsOnly(v).length > 2 ? _digitsOnly(v).substring(0, 2) : _digitsOnly(v);
-                          if (d != _expiryMonthController.text) {
-                            _expiryMonthController.text = d;
-                            _expiryMonthController.selection = TextSelection.collapsed(offset: d.length);
-                          }
-                        }),
+                        child: _buildField(
+                          'Month',
+                          _expiryMonthController,
+                          'MM',
+                          2,
+                          (v) {
+                            final d = _digitsOnly(v).length > 2
+                                ? _digitsOnly(v).substring(0, 2)
+                                : _digitsOnly(v);
+                            if (d != _expiryMonthController.text) {
+                              _expiryMonthController.text = d;
+                              _expiryMonthController.selection =
+                                  TextSelection.collapsed(offset: d.length);
+                            }
+                          },
+                        ),
                       ),
                       SizedBox(width: 12.w),
                       Expanded(
-                        child: _buildField('Year', _expiryYearController, 'YY', 2, (v) {
-                          final d = _digitsOnly(v).length > 2 ? _digitsOnly(v).substring(0, 2) : _digitsOnly(v);
-                          if (d != _expiryYearController.text) {
-                            _expiryYearController.text = d;
-                            _expiryYearController.selection = TextSelection.collapsed(offset: d.length);
-                          }
-                        }),
+                        child: _buildField(
+                          'Year',
+                          _expiryYearController,
+                          'YY',
+                          2,
+                          (v) {
+                            final d = _digitsOnly(v).length > 2
+                                ? _digitsOnly(v).substring(0, 2)
+                                : _digitsOnly(v);
+                            if (d != _expiryYearController.text) {
+                              _expiryYearController.text = d;
+                              _expiryYearController.selection =
+                                  TextSelection.collapsed(offset: d.length);
+                            }
+                          },
+                        ),
                       ),
                       SizedBox(width: 12.w),
                       Expanded(
-                        child: _buildField('CVV', _cvvController, '123', 3, (v) {
-                          final d = _digitsOnly(v).length > 3 ? _digitsOnly(v).substring(0, 3) : _digitsOnly(v);
+                        child: _buildField('CVV', _cvvController, '123', 3, (
+                          v,
+                        ) {
+                          final d = _digitsOnly(v).length > 3
+                              ? _digitsOnly(v).substring(0, 3)
+                              : _digitsOnly(v);
                           if (d != _cvvController.text) {
                             _cvvController.text = d;
-                            _cvvController.selection = TextSelection.collapsed(offset: d.length);
+                            _cvvController.selection = TextSelection.collapsed(
+                              offset: d.length,
+                            );
                           }
                         }),
                       ),
@@ -761,7 +838,9 @@ class _AddCardScreenState extends State<AddCardScreen> {
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
       decoration: BoxDecoration(
         color: _bgBlue,
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -770,10 +849,16 @@ class _AddCardScreenState extends State<AddCardScreen> {
             children: [
               IconButton(
                 onPressed: widget.onBack,
-                icon: Icon(Icons.arrow_back_ios_new, size: 22.sp, color: Colors.white),
+                icon: Icon(
+                  Icons.arrow_back_ios_new,
+                  size: 22.sp,
+                  color: Colors.white,
+                ),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
                 ),
               ),
               SizedBox(width: 12.w),
@@ -852,7 +937,10 @@ class _AddCardScreenState extends State<AddCardScreen> {
               borderRadius: BorderRadius.circular(16.r),
               borderSide: const BorderSide(color: Colors.white, width: 2),
             ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 16.w,
+              vertical: 14.h,
+            ),
             counterText: '',
           ),
         ),

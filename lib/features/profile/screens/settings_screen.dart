@@ -76,9 +76,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => NotificationsScreen(
-          onBack: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) =>
+            NotificationsScreen(onBack: () => Navigator.of(context).pop()),
       ),
     );
   }
@@ -118,21 +117,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           break;
       }
     });
-    final label = key.replaceAllMapped(
-      RegExp(r'([A-Z])'),
-      (m) => ' ${m.group(0)!.toLowerCase()}',
-    ).trim();
+    final label = key
+        .replaceAllMapped(
+          RegExp(r'([A-Z])'),
+          (m) => ' ${m.group(0)!.toLowerCase()}',
+        )
+        .trim();
     final enabled = key == 'darkMode'
         ? _darkMode
         : key == 'pushNotifications'
-            ? _pushNotifications
-            : key == 'emailNotifications'
-                ? _emailNotifications
-                : key == 'smsNotifications'
-                    ? _smsNotifications
-                    : key == 'bookingReminders'
-                        ? _bookingReminders
-                        : _promotionalEmails;
+        ? _pushNotifications
+        : key == 'emailNotifications'
+        ? _emailNotifications
+        : key == 'smsNotifications'
+        ? _smsNotifications
+        : key == 'bookingReminders'
+        ? _bookingReminders
+        : _promotionalEmails;
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -156,7 +157,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: const Text('Change Password', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Change Password',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
           body: const Center(
             child: Text(
@@ -181,7 +185,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: const Text('Privacy Policy', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Privacy Policy',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
           body: const SingleChildScrollView(
             padding: EdgeInsets.all(24),
@@ -207,7 +214,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: const Text('Terms of Service', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Terms of Service',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
           body: const SingleChildScrollView(
             padding: EdgeInsets.all(24),
@@ -271,10 +281,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           CustomerHeader(
             leading: IconButton(
               onPressed: _onBack,
-              icon: Icon(Icons.arrow_back_ios_new, size: 22.sp, color: Colors.white),
+              icon: Icon(
+                Icons.arrow_back_ios_new,
+                size: 22.sp,
+                color: Colors.white,
+              ),
               style: IconButton.styleFrom(
                 backgroundColor: Colors.white.withOpacity(0.1),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
               ),
             ),
             selectedTownName: widget.selectedTownName ?? _selectedTownName,
@@ -314,7 +330,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       decoration: BoxDecoration(
         color: _bgBlue,
-        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
       ),
       child: Row(
         children: [
@@ -463,7 +481,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.red.shade200, size: 24.sp),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.red.shade200,
+                size: 24.sp,
+              ),
             ],
           ),
         ),
@@ -594,7 +616,11 @@ class _SettingRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.7), size: 24.sp),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.white.withOpacity(0.7),
+              size: 24.sp,
+            ),
           ],
         ),
       ),
