@@ -124,7 +124,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
     if (!mounted) return;
     final town = await Navigator.of(context).push<Town>(
       MaterialPageRoute<Town>(
-        builder: (context) => TownSelectionScreen(
+        builder: (context) => TownSelectionScreenWithProvider(
           onSelectTown: (t) => Navigator.of(context).pop(t),
           canClose: true,
         ),

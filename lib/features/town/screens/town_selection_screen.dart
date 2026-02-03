@@ -351,3 +351,23 @@ class _TownSelectionScreenState extends State<TownSelectionScreen> {
     );
   }
 }
+
+/// Wrapper so route/modal call sites can use TownSelectionScreenWithProvider.
+class TownSelectionScreenWithProvider extends StatelessWidget {
+  const TownSelectionScreenWithProvider({
+    super.key,
+    required this.onSelectTown,
+    this.canClose = false,
+  });
+
+  final void Function(Town town) onSelectTown;
+  final bool canClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return TownSelectionScreen(
+      onSelectTown: onSelectTown,
+      canClose: canClose,
+    );
+  }
+}
