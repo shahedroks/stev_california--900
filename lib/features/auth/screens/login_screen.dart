@@ -264,30 +264,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
 
-              SizedBox(height: 24.h),
-
-              // Login as Service Provider switch
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Login as Service Provider',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                      color: AllColor.white,
-                    ),
-                  ),
-                  Switch(
-                    value: _loginAsProvider,
-                    onChanged: (value) => setState(() => _loginAsProvider = value),
-                    activeTrackColor: AllColor.white.withOpacity(0.8),
-                    activeThumbColor: AllColor.primary,
-                    inactiveTrackColor: AllColor.white.withOpacity(0.3),
-                    inactiveThumbColor: AllColor.white,
-                  ),
-                ],
-              ),
+              SizedBox(height: 35.h),
 
               SizedBox(height: 24.h),
 
