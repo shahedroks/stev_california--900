@@ -4,20 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:renizo/core/constants/color_control/all_color.dart';
+import 'package:renizo/core/models/town.dart';
 import 'package:renizo/core/models/user.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
 import 'package:renizo/features/auth/screens/login_screen.dart';
 import 'package:renizo/features/home/widgets/customer_header.dart';
+import 'package:renizo/features/notifications/screens/notifications_screen.dart';
+import 'package:renizo/features/profile/logic/user_riverpod.dart';
+// ✅ add this
+
 import 'package:renizo/features/profile/screens/edit_profile_screen.dart';
+import 'package:renizo/features/profile/screens/help_support_screen.dart';
 import 'package:renizo/features/profile/screens/payment_methods_screen.dart';
 import 'package:renizo/features/profile/screens/settings_screen.dart';
-import 'package:renizo/features/profile/screens/help_support_screen.dart';
-import 'package:renizo/features/notifications/screens/notifications_screen.dart';
 import 'package:renizo/features/town/screens/town_selection_screen.dart';
-import 'package:renizo/core/models/town.dart';
 
-/// Profile – full conversion from React ProfileScreen.tsx.
-/// Blue bg, profile card (avatar, name, email, stats), menu tiles, Log Out.
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({
     super.key,
@@ -137,6 +138,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         )
         .then((_) {
+          // ✅ refresh API user + local user
+          ref.invalidate(userMeProvider);
           if (mounted) _loadUser();
         });
   }
@@ -173,13 +176,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = _displayUser;
+    // ✅ API fetch via Riverpod
+    final meAsync = ref.watch(userMeProvider);
+    final me = meAsync.valueOrNull;
+
+    final apiUser = me?.toUser();
+    final user = apiUser ?? _displayUser;
+
+    final bookings = me?.bookings ?? 0;
+    final reviews = me?.reviews ?? 0;
+    final favorites = me?.favorites ?? 0;
+
+    final townName =
+        widget.selectedTownName ?? _selectedTownName ?? me?.townName;
+
     return Scaffold(
       backgroundColor: _bgBlue,
       body: Column(
         children: [
           CustomerHeader(
-            selectedTownName: widget.selectedTownName ?? _selectedTownName,
+            selectedTownName: townName,
             onChangeTown: _onChangeTownHeader,
             onNotifications: _onNotifications,
           ),
@@ -189,8 +205,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildProfileCard(user),
+                  _buildProfileCard(
+                    user,
+                    bookings: bookings,
+                    reviews: reviews,
+                    favorites: favorites,
+                  ),
                   SizedBox(height: 24.h),
+
+                  // optional: error hint (UI layout same, tiny line)
+                  if (meAsync.hasError)
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 12.h),
+                      child: Text(
+                        'Failed to load profile. Tap to retry.',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 12.sp,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
+                  if (meAsync.hasError)
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 12.h),
+                      child: Center(
+                        child: TextButton(
+                          onPressed: () => ref.invalidate(userMeProvider),
+                          child: const Text('Retry'),
+                        ),
+                      ),
+                    ),
+
                   _buildMenuTiles(),
                   SizedBox(height: 16.h),
                   _buildLogoutButton(),
@@ -203,7 +250,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileCard(User? user) {
+  Widget _buildProfileCard(
+    User? user, {
+    required int bookings,
+    required int reviews,
+    required int favorites,
+  }) {
     return Container(
       padding: EdgeInsets.all(24.w),
       decoration: BoxDecoration(
@@ -251,19 +303,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             padding: EdgeInsets.only(top: 16.h),
             child: Row(
               children: [
-                _buildStat('12', 'Bookings'),
+                _buildStat('$bookings', 'Bookings'),
                 Container(
                   width: 1,
                   height: 32.h,
                   color: Colors.white.withOpacity(0.2),
                 ),
-                _buildStat('8', 'Reviews'),
+                _buildStat('$reviews', 'Reviews'),
                 Container(
                   width: 1,
                   height: 32.h,
                   color: Colors.white.withOpacity(0.2),
                 ),
-                _buildStat('4', 'Favorites'),
+                _buildStat('$favorites', 'Favorites'),
               ],
             ),
           ),
@@ -274,7 +326,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildAvatar(User? user) {
     final size = 80.0;
-    // Same as ProfileScreen.tsx: user.avatar ? <img src={user.avatar} /> : show placeholder image
     final String imageUrl;
     if (user?.avatar != null && user!.avatar!.isNotEmpty) {
       imageUrl = user.avatar!;
@@ -294,7 +345,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  /// Placeholder image URL when user has no avatar – shows a consistent profile image (same as TSX img fallback).
   String _placeholderAvatarUrl(User? user) {
     final seed = user?.id ?? user?.email ?? user?.name ?? 'profile';
     return 'https://i.pravatar.cc/300?u=$seed';
