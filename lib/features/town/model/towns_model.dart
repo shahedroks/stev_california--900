@@ -6,7 +6,7 @@ class Town {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  Town({
+  const Town({
     required this.id,
     required this.name,
     required this.isActive,
@@ -14,13 +14,19 @@ class Town {
     required this.updatedAt,
   });
 
+  static DateTime _parseDate(dynamic v) {
+    final s = v?.toString();
+    if (s == null || s.isEmpty) return DateTime.fromMillisecondsSinceEpoch(0);
+    return DateTime.tryParse(s) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
   factory Town.fromJson(Map<String, dynamic> json) {
     return Town(
-      id: json['_id'],
-      name: json['name'],
-      isActive: json['isActive'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      id: (json['_id'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      isActive: json['isActive'] == true,
+      createdAt: _parseDate(json['createdAt']),
+      updatedAt: _parseDate(json['updatedAt']),
     );
   }
 
