@@ -16,8 +16,13 @@ class BookingsMeRepository {
 
     final req = http.Request('GET', uri);
 
-    final headers = await AuthLocalStorage.authHeaders(); // ✅ non-null map
-    req.headers.addAll(headers!);
+    final headers = await AuthLocalStorage.authHeaders();
+    if (headers != null) {
+      req.headers.addAll(headers);
+    }
+
+    // always set content-type so backend can parse JSON body
+    req.headers['Content-Type'] = 'application/json';
 
     if (townId != null && townId.trim().isNotEmpty) {
       req.body = jsonEncode({'townId': townId.trim()});

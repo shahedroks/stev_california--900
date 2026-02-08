@@ -15,8 +15,7 @@ class SellerBottomNav extends ConsumerWidget {
   static const String routeName = '/seller';
 
   static const List<Widget> _pages = [
-    SellerHomeScreen(providerStatusActive: null),
-
+    SellerHomeScreen(),
     SellerBookingsScreen(bookings: []),
     SellerMessagesScreen(),
     SellerEarningsScreen(),
