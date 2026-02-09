@@ -114,7 +114,18 @@ class AuthLocalStorage {
     return p.getString(_keySelectedTown + userId);
   }
 
-  static Future getAccessToken() async {}
+  static Future<String?> getAccessToken() async {
+    final p = await _pref;
+    return p.getString(_keyToken);
+  }
 
-  static Future<Map<String, String>?> authHeaders() async {}
+  static Future<Map<String, String>?> authHeaders() async {
+    final token = await getAccessToken();
+    if (token == null || token.isEmpty) return null;
+    return {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+  }
 }

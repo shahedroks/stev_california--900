@@ -18,10 +18,11 @@ const Color _navUnselected = Color(0xB3FFFFFF); // white/70
 class BottomNavBar extends ConsumerWidget {
   const BottomNavBar({super.key});
   static const String routeName = '/BottomNavBar';
-  static const List<Widget> _pages = [
+  static List<Widget> _pages = [
     CustomerHomeScreen(),
     SearchScreen(),
     BookingsScreen(),
+    //  BookingsScreen(),
     MessagesScreen(),
     ProfileScreen(),
   ];
@@ -40,13 +41,11 @@ class BottomNavBar extends ConsumerWidget {
     final selectedIndex = ref.watch(selectedIndexProvider);
 
     return Scaffold(
-      body: IndexedStack(
-        index: selectedIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: selectedIndex, children: _pages),
       bottomNavigationBar: CustomerBottomNavBar(
         currentIndex: selectedIndex,
-        onTabTap: (index) => ref.read(selectedIndexProvider.notifier).state = index,
+        onTabTap: (index) =>
+            ref.read(selectedIndexProvider.notifier).state = index,
       ),
     );
   }
@@ -129,7 +128,7 @@ class _NavBarItem extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16.r),
         child: Padding(
-          padding: EdgeInsets.symmetric( horizontal: 8.w),
+          padding: EdgeInsets.symmetric(horizontal: 8.w),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
