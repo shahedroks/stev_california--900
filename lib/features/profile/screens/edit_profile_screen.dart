@@ -1,11 +1,15 @@
+import 'dart:convert';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:http/http.dart' as http;
+import 'package:renizo/core/constants/api_control/user_api.dart';
 import 'package:renizo/core/models/user.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
 
-/// Edit Profile – full conversion from React EditProfileScreen.tsx.
-/// Blue header (back, title, Save), avatar + camera, name/email/phone fields, info box.
+/// Edit Profile – name editable; email and phone read-only (display only).
+/// Save calls PATCH /users/me with { "fullName": "..." } only.
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({
     super.key,
@@ -34,6 +38,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   static const Color _bgBlue = Color(0xFF2384F4);
   static const Color _headerBlue = Color(0xFF0060CF);
 
+  bool _isSaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -42,15 +48,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _phoneController = TextEditingController(text: widget.user.phone);
     _avatarUrl = widget.user.avatar;
     _nameController.addListener(_markChanged);
-    _emailController.addListener(_markChanged);
-    _phoneController.addListener(_markChanged);
   }
 
   void _markChanged() {
-    if (!_isChanged &&
-        (_nameController.text != widget.user.name ||
-            _emailController.text != widget.user.email ||
-            _phoneController.text != widget.user.phone)) {
+    if (!_isChanged && _nameController.text != widget.user.name) {
       setState(() => _isChanged = true);
     }
   }
@@ -98,69 +99,79 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  void _onSave() {
+  Future<void> _onSave() async {
     final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
-
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Name is required')),
       );
       return;
     }
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email is required')),
-      );
-      return;
-    }
-    if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phone is required')),
-      );
-      return;
-    }
 
-    final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-    if (!emailRegex.hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email address')),
-      );
-      return;
-    }
-
-    final phoneRegex = RegExp(r'^[\d\s\-\(\)\+]+$');
-    if (!phoneRegex.hasMatch(phone)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid phone number')),
-      );
-      return;
-    }
-
-    widget.onSave?.call(
-      name: name,
-      email: email,
-      phone: phone,
-      avatar: _avatarUrl,
-    );
+    widget.onSave?.call(name: name);
     if (widget.onSave != null) {
       _pop();
       return;
     }
 
-    AuthLocalStorage.updateProfile(
-      name: name,
-      email: email,
-      phone: phone,
-      avatar: _avatarUrl,
-    ).then((_) {
+    setState(() => _isSaving = true);
+    try {
+      final uri = Uri.parse(UserApi.me);
+      final headers = await AuthLocalStorage.authHeaders();
+      final response = await http.patch(
+        uri,
+        headers: headers ?? {'Content-Type': 'application/json'},
+        body: jsonEncode({'fullName': name}),
+      );
+
+      final dynamic decoded = jsonDecode(response.body);
+      final Map<String, dynamic> body =
+          decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+
+      if (response.statusCode >= 400) {
+        final msg = body['message']?.toString() ?? 'HTTP ${response.statusCode}';
+        throw Exception(msg);
+      }
+      final status = (body['status'] ?? '').toString().toLowerCase();
+      if (status != 'success') {
+        final msg =
+            body['message']?.toString() ?? 'Unexpected status: $status';
+        throw Exception(msg);
+      }
+
+      final data = body['data'];
+      if (data is Map<String, dynamic>) {
+        final fullName = (data['fullName'] ?? name).toString();
+        final email = (data['email'] ?? widget.user.email).toString();
+        final phone = (data['phone'] ?? widget.user.phone).toString();
+        final avatarUrl = data['avatarUrl']?.toString();
+        await AuthLocalStorage.updateProfile(
+          name: fullName,
+          email: email,
+          phone: phone,
+          avatar: avatarUrl?.isNotEmpty == true ? avatarUrl : null,
+        );
+        widget.onSave?.call(
+          name: fullName,
+          email: email,
+          phone: phone,
+          avatar: avatarUrl?.isNotEmpty == true ? avatarUrl : null,
+        );
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully!')),
       );
       _pop();
-    });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   Future<void> _onAvatarTap() async {
@@ -228,21 +239,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ),
           Material(
-            color: _isChanged
+            color: (_isChanged && !_isSaving)
                 ? Colors.white.withOpacity(0.9)
                 : Colors.white.withOpacity(0.2),
             borderRadius: BorderRadius.circular(12.r),
             child: InkWell(
-              onTap: _isChanged ? _onSave : null,
+              onTap: (_isChanged && !_isSaving) ? _onSave : null,
               borderRadius: BorderRadius.circular(12.r),
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
                 child: Text(
-                  'Save',
+                  _isSaving ? 'Saving...' : 'Save',
                   style: TextStyle(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w500,
-                    color: _isChanged
+                    color: (_isChanged && !_isSaving)
                         ? const Color(0xFF003E93)
                         : Colors.white.withOpacity(0.5),
                   ),
@@ -376,6 +387,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           controller: _emailController,
           placeholder: 'your.email@example.com',
           keyboardType: TextInputType.emailAddress,
+          readOnly: true,
         ),
         SizedBox(height: 20.h),
         _buildLabel('Phone Number'),
@@ -384,6 +396,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           controller: _phoneController,
           placeholder: '+1 (555) 123-4567',
           keyboardType: TextInputType.phone,
+          readOnly: true,
         ),
         SizedBox(height: 24.h),
         Container(
@@ -421,27 +434,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required TextEditingController controller,
     required String placeholder,
     required TextInputType keyboardType,
+    bool readOnly = false,
   }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
-      style: TextStyle(fontSize: 16.sp, color: const Color(0xFF111827)),
+      readOnly: readOnly,
+      style: TextStyle(
+        fontSize: 16.sp,
+        color: readOnly ? const Color(0xFF6B7280) : const Color(0xFF111827),
+      ),
       decoration: InputDecoration(
         hintText: placeholder,
         hintStyle: TextStyle(fontSize: 16.sp, color: const Color(0xFF9CA3AF)),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: readOnly ? const Color(0xFFF3F4F6) : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16.r),
           borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16.r),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+          borderSide: BorderSide(
+            color: readOnly
+                ? const Color(0xFFE5E7EB)
+                : Colors.white.withOpacity(0.2),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16.r),
-          borderSide: const BorderSide(color: Colors.white, width: 2),
+          borderSide: BorderSide(
+            color: readOnly ? const Color(0xFFE5E7EB) : Colors.white,
+            width: readOnly ? 1 : 2,
+          ),
         ),
         contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
       ),

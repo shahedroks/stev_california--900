@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:renizo/core/widgets/app_logo_button.dart';
 import 'package:renizo/features/seller/models/seller_job_item.dart';
 
 // TSX SellerEarningsScreen.tsx colors
@@ -138,6 +139,12 @@ class _SellerEarningsScreenState extends State<SellerEarningsScreen> {
         title: Text('Earnings', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600, color: Colors.white)),
         backgroundColor: _EarningsColors.blueBg,
         elevation: 0,
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(right: 12.w),
+            child: AppLogoButton(size: 34),
+          ),
+        ],
       ),
       body: content,
     );
@@ -391,37 +398,6 @@ class _TransactionsCard extends StatelessWidget {
             );
           }),
         ],
-      ),
-    );
-  }
-}
-
-/// Request Withdrawal button – TSX: full width gradient blue.
-class _WithdrawalButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(16.r),
-        child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.symmetric(vertical: 16.h),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_EarningsColors.blueGradientStart, _EarningsColors.blueGradientEnd], begin: Alignment.centerLeft, end: Alignment.centerRight),
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: [BoxShadow(color: _EarningsColors.blueGradientStart.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.payments_outlined, size: 20.sp, color: Colors.white),
-              SizedBox(width: 8.w),
-              Text('Request Withdrawal', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: Colors.white)),
-            ],
-          ),
-        ),
       ),
     );
   }

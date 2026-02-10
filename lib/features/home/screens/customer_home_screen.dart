@@ -11,6 +11,7 @@ import 'package:renizo/features/home/widgets/featured_providers.dart';
 import 'package:renizo/features/home/widgets/service_categories.dart';
 import 'package:renizo/features/home/widgets/welcome_banner.dart';
 import 'package:renizo/features/notifications/screens/notifications_screen.dart';
+import 'package:renizo/features/providers/screens/provider_public_profile_screen.dart';
 import 'package:renizo/features/town/screens/town_selection_screen.dart';
 
 /// Customer main home – fully API-driven via GET /customer/home?townId=.
@@ -135,59 +136,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final townId = _townId;
-
-    // No townId → show header + prompt to select location
-    if (townId.isEmpty) {
-      return Scaffold(
-        backgroundColor: _bg,
-        body: Column(
-          children: [
-            CustomerHeader(
-              selectedTownName: widget.selectedTownName ?? _selectedTownName,
-              onChangeTown: _onChangeTown,
-              onNotifications: _onNotifications,
-            ),
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24.w),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.location_on_outlined,
-                          size: 48.sp, color: Colors.white.withOpacity(0.5)),
-                      SizedBox(height: 12.h),
-                      Text(
-                        'Select a location to get started',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 16.h),
-                      ElevatedButton(
-                        onPressed: _onChangeTown,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: _bg,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.r),
-                          ),
-                        ),
-                        child: const Text('Choose Location'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Watch API data
     final asyncHome = ref.watch(customerHomeControllerProvider(townId));
 
     return asyncHome.when(
@@ -319,8 +267,16 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                       onSelectProvider: (p) {
                         widget.onSelectProvider?.call(p);
                         if (widget.onSelectProvider == null) {
-                          debugPrint(
-                              'Selected provider: ${p.name} (${p.id})');
+                          Navigator.of(context).push<void>(
+                            MaterialPageRoute<void>(
+                              builder: (context) =>
+                                  ProviderPublicProfileScreen(
+                                providerUserId: p.id,
+                                initialName: p.name,
+                                initialLogoUrl: p.imageUrl,
+                              ),
+                            ),
+                          );
                         }
                       },
                       lightHeader: true,

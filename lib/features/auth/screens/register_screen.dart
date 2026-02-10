@@ -81,9 +81,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final user = await AuthLocalStorage.getCurrentUser();
       if (user == null) return;
       if (user.isProvider) {
-        context.go(ProviderAppScreen.routeName);
+        context.push(ProviderAppScreen.routeName);
       } else {
-        context.go(OnboardingSlidesScreen.routeName);
+        context.push(OnboardingSlidesScreen.routeName);
       }
     } else if (signupState.error != null) {
       _showError(signupState.error!);

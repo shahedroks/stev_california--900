@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import 'package:renizo/core/models/town.dart';
 import 'package:renizo/features/home/widgets/customer_header.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
@@ -92,7 +93,6 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   String? _selectedTownName;
-  String? _selectedTownId;
 
   static const Color _bgBlue = Color(0xFF2384F4);
 
@@ -111,7 +111,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     if (town != null && mounted) {
       setState(() {
         _selectedTownName = town.name;
-        _selectedTownId = town.id;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -121,22 +120,25 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
-  void _onNotifications() {
-    widget.onNotifications?.call();
-    if (widget.onNotifications != null) return;
-    // Already on NotificationsScreen; no-op or could refresh
-  }
-
   void _onNavTabTap(int index) {
     if (index == 4) return;
-    Navigator.of(context).pop();
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go(BottomNavBar.routeName);
+    }
     ref.read(selectedIndexProvider.notifier).state = index;
   }
 
   void _onBack() {
     widget.onBack?.call();
     if (widget.onBack != null) return;
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go(BottomNavBar.routeName);
+    }
   }
 
   @override
