@@ -5,6 +5,7 @@ import 'package:renizo/core/models/town.dart';
 import 'package:renizo/features/home/widgets/customer_header.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
 import 'package:renizo/features/notifications/screens/notifications_screen.dart';
+import 'package:renizo/core/widgets/app_logo_button.dart';
 
 import '../../town/screens/town_selection_screen.dart';
 
@@ -34,7 +35,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String? _selectedTownName;
-  String? _selectedTownId;
 
   bool _pushNotifications = true;
   bool _emailNotifications = true;
@@ -61,7 +61,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (town != null && mounted) {
       setState(() {
         _selectedTownName = town.name;
-        _selectedTownId = town.id;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -162,6 +161,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'Change Password',
               style: TextStyle(color: Colors.white),
             ),
+            actions: [
+              Padding(
+                padding: EdgeInsets.only(right: 12.w),
+                child: AppLogoButton(size: 34),
+              ),
+            ],
           ),
           body: const Center(
             child: Text(
@@ -190,6 +195,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'Privacy Policy',
               style: TextStyle(color: Colors.white),
             ),
+            actions: [
+              Padding(
+                padding: EdgeInsets.only(right: 12.w),
+                child: AppLogoButton(size: 34),
+              ),
+            ],
           ),
           body: const SingleChildScrollView(
             padding: EdgeInsets.all(24),
@@ -219,6 +230,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'Terms of Service',
               style: TextStyle(color: Colors.white),
             ),
+            actions: [
+              Padding(
+                padding: EdgeInsets.only(right: 12.w),
+                child: AppLogoButton(size: 34),
+              ),
+            ],
           ),
           body: const SingleChildScrollView(
             padding: EdgeInsets.all(24),

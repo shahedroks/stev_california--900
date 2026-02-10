@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:renizo/core/constants/color_control/all_color.dart';
+import 'package:renizo/core/widgets/app_logo_button.dart';
 
 /// Header blue from Header.tsx (bg-[#0060CF]). Used for bar and location text/icon.
 const Color _headerBlue = Color(0xFF0060CF);
@@ -15,6 +16,7 @@ class CustomerHeader extends StatelessWidget {
     this.onChangeTown,
     this.onNotifications,
     this.logoPath = 'assets/Renizo.png',
+    this.onLogoTap,
   });
 
   /// Optional leading widget (e.g. back button) shown before the logo.
@@ -24,6 +26,7 @@ class CustomerHeader extends StatelessWidget {
   final VoidCallback? onChangeTown;
   final VoidCallback? onNotifications;
   final String logoPath;
+  final VoidCallback? onLogoTap;
 
   @override
   Widget build(BuildContext context) {
@@ -48,16 +51,14 @@ class CustomerHeader extends StatelessWidget {
               leading!,
               SizedBox(width: 12.w),
             ],
-            // Logo left
+            // Logo left (clickable)
             Expanded(
               child: Row(
                 children: [
-                  Image.asset(
-                    logoPath,
-                    height: 40.h,
-                    width: null,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => _LogoPlaceholder(),
+                  AppLogoButton(
+                    size: 40,
+                    logoPath: logoPath,
+                    onTap: onLogoTap,
                   ),
                 ],
               ),
@@ -80,33 +81,6 @@ class CustomerHeader extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _LogoPlaceholder extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'RENIZO',
-          style: TextStyle(
-            fontSize: 18.sp,
-            fontWeight: FontWeight.bold,
-            color: AllColor.foreground,
-          ),
-        ),
-        Text(
-          'Your Home. Your Habitat.',
-          style: TextStyle(
-            fontSize: 11.sp,
-            color: AllColor.orange,
-          ),
-        ),
-      ],
     );
   }
 }

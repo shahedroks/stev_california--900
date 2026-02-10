@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:renizo/core/widgets/app_logo_button.dart';
 
 // TSX SellerMessagesScreen.tsx colors
 class _MessagesColors {
@@ -14,7 +15,6 @@ class _MessagesColors {
 class _ChatItem {
   final String customerId;
   final String customerName;
-  final String? customerAvatar;
   final String lastMessage;
   final String timestamp;
   final int unread;
@@ -24,7 +24,6 @@ class _ChatItem {
   const _ChatItem({
     required this.customerId,
     required this.customerName,
-    this.customerAvatar,
     required this.lastMessage,
     required this.timestamp,
     this.unread = 0,
@@ -132,6 +131,12 @@ class SellerMessagesScreen extends StatelessWidget {
         title: Text('Messages', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600, color: Colors.white)),
         backgroundColor: _MessagesColors.blueBg,
         elevation: 0,
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(right: 12.w),
+            child: AppLogoButton(size: 34),
+          ),
+        ],
       ),
       body: content,
     );

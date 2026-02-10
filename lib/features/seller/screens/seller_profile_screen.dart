@@ -358,6 +358,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
+import 'package:renizo/core/widgets/app_logo_button.dart';
 import 'package:renizo/features/auth/screens/login_screen.dart';
 import 'package:renizo/features/notifications/screens/notifications_screen.dart';
 import 'package:renizo/features/profile/screens/help_support_screen.dart';
@@ -433,37 +434,41 @@ class SellerProfileScreen extends ConsumerWidget {
               ? 'Pro Provider'
               : model.user.badge!.trim();
 
-          return ListView(
-            padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 32.h),
-            children: [
-              _ProfileCard(
-                name: name,
-                email: email,
-                badgeText: badgeText,
-                jobsDone: model.stats.jobsDone.toString(),
-                rating: model.stats.rating.toStringAsFixed(1),
-                success: '${model.stats.successRate}%',
-              ),
-              SizedBox(height: 24.h),
-              _ServiceAreasSection(towns: model.serviceAreas),
-              SizedBox(height: 24.h),
-              _ServicesOfferedSection(services: model.servicesOffered),
-              SizedBox(height: 24.h),
-              const _AccountMenuSection(),
-              SizedBox(height: 16.h),
-              _LogoutButton(onLogout: onLogout),
-              SizedBox(height: 24.h),
-              Center(
-                child: Text(
-                  'Version 1.0.0',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: _ProfileColors.gray400,
+          return RefreshIndicator(
+            onRefresh: () => ref.refresh(providerProfileScreenProvider.future),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 32.h),
+              children: [
+                _ProfileCard(
+                  name: name,
+                  email: email,
+                  badgeText: badgeText,
+                  jobsDone: model.stats.jobsDone.toString(),
+                  rating: model.stats.rating.toStringAsFixed(1),
+                  success: '${model.stats.successRate}%',
+                ),
+                SizedBox(height: 24.h),
+                _ServiceAreasSection(towns: model.serviceAreas),
+                SizedBox(height: 24.h),
+                _ServicesOfferedSection(services: model.servicesOffered),
+                SizedBox(height: 24.h),
+                const _AccountMenuSection(),
+                SizedBox(height: 16.h),
+                _LogoutButton(onLogout: onLogout),
+                SizedBox(height: 24.h),
+                Center(
+                  child: Text(
+                    'Version 1.0.0',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: _ProfileColors.gray400,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(height: 80.h),
-            ],
+                SizedBox(height: 80.h),
+              ],
+            ),
           );
         },
       ),
@@ -484,6 +489,12 @@ class SellerProfileScreen extends ConsumerWidget {
         ),
         backgroundColor: _ProfileColors.blueBg,
         elevation: 0,
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(right: 12.w),
+            child: AppLogoButton(size: 34),
+          ),
+        ],
       ),
       body: content,
     );
@@ -814,11 +825,7 @@ class _ServicesOfferedSection extends StatelessWidget {
                                 ),
                                 borderRadius: BorderRadius.circular(12.r),
                               ),
-                              child: Icon(
-                                Icons.build_outlined,
-                                size: 20.sp,
-                                color: _ProfileColors.blueAccent,
-                              ),
+                              child: _ServiceOfferedIcon(iconUrl: s.iconUrl),
                             ),
                             SizedBox(width: 12.w),
                             Expanded(
@@ -852,6 +859,38 @@ class _ServicesOfferedSection extends StatelessWidget {
                 ),
         ),
       ],
+    );
+  }
+}
+
+class _ServiceOfferedIcon extends StatelessWidget {
+  const _ServiceOfferedIcon({required this.iconUrl});
+
+  final String iconUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (iconUrl.isEmpty) {
+      return Icon(
+        Icons.build_outlined,
+        size: 20.sp,
+        color: _ProfileColors.blueAccent,
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10.r),
+      child: Image.network(
+        iconUrl,
+        width: 24.w,
+        height: 24.w,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Icon(
+          Icons.build_outlined,
+          size: 20.sp,
+          color: _ProfileColors.blueAccent,
+        ),
+      ),
     );
   }
 }

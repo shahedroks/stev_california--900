@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:http/http.dart' as http;
+import 'package:renizo/core/constants/api_control/provider_api.dart';
 import 'package:renizo/core/models/service_category.dart';
+import 'package:renizo/core/utils/auth_local_storage.dart';
 import 'package:renizo/features/bookings/data/task_submission_service_structure.dart';
 import 'package:renizo/features/bookings/screens/seller_matching_screen.dart';
-import 'package:renizo/features/home/widgets/service_categories.dart';
 
 /// Task submission form – full conversion from React TaskSubmission.tsx.
 /// Create Booking: service type, sub-section, add-ons, date, time, address, notes.
@@ -50,7 +54,12 @@ class TaskSubmissionFormData {
 }
 
 class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
-  final List<ServiceCategory> _categories = ServiceCategoriesWidget.mockCategories;
+  List<ServiceCategory> _categories = [];
+  bool _loadingCategories = true;
+  String? _categoriesError;
+  List<_ApiSubSection> _subSections = [];
+  bool _loadingSubSections = false;
+  String? _subSectionsError;
   final List<String> _timeOptions = [
     'Morning (8AM - 12PM)',
     'Noon (12PM - 3PM)',
@@ -74,12 +83,158 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
   TaskServiceStructure? get _serviceStructure =>
       _categoryId.isEmpty ? null : getTaskServiceStructure(_categoryId);
 
-  bool get _isFormValid =>
-      _categoryId.isNotEmpty &&
-      _subSectionId.isNotEmpty &&
-      _date.isNotEmpty &&
-      _time.isNotEmpty &&
-      _address.isNotEmpty;
+  bool get _isFormValid {
+    final subSectionOk =
+        !_loadingSubSections && (_subSections.isEmpty || _subSectionId.isNotEmpty);
+    return _categoryId.isNotEmpty &&
+        subSectionOk &&
+        _date.isNotEmpty &&
+        _time.isNotEmpty &&
+        _address.isNotEmpty;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCatalogServices();
+  }
+
+  Future<void> _loadCatalogServices() async {
+    setState(() {
+      _loadingCategories = true;
+      _categoriesError = null;
+    });
+    try {
+      final token = await AuthLocalStorage.getToken();
+      final res = await http.get(
+        Uri.parse(ProviderApi.catalogServices),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.toString().isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      );
+
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(res.body);
+      } catch (_) {
+        throw Exception('Invalid response from server');
+      }
+
+      if (res.statusCode >= 400) {
+        final msg = (decoded is Map<String, dynamic>)
+            ? decoded['message']?.toString()
+            : null;
+        throw Exception(msg ?? 'Failed to load services');
+      }
+
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Unexpected response format');
+      }
+
+      final data = decoded['data'];
+      if (data is! List) {
+        throw Exception('Unexpected response format');
+      }
+
+      String s(dynamic v) => (v ?? '').toString();
+      final services = data
+          .whereType<Map>()
+          .map((e) {
+            final map = e.cast<String, dynamic>();
+            final isActive = map['isActive'] == null ? true : map['isActive'] == true;
+            return ServiceCategory(
+              id: s(map['_id']).isNotEmpty ? s(map['_id']) : s(map['id']),
+              name: s(map['name']),
+              icon: s(map['iconUrl']),
+              description: s(map['description']),
+              enabled: isActive,
+            );
+          })
+          .where((c) => c.enabled)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _categories = services;
+          _loadingCategories = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _categories = [];
+          _categoriesError = e.toString().replaceFirst('Exception: ', '');
+          _loadingCategories = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadSubSections(String serviceId) async {
+    setState(() {
+      _loadingSubSections = true;
+      _subSectionsError = null;
+      _subSections = [];
+      _subSectionId = '';
+    });
+    try {
+      final token = await AuthLocalStorage.getToken();
+      final res = await http.get(
+        ProviderApi.catalogSubSectionsUri(serviceId),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.toString().isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      );
+
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(res.body);
+      } catch (_) {
+        throw Exception('Invalid response from server');
+      }
+
+      if (res.statusCode >= 400) {
+        final msg = (decoded is Map<String, dynamic>)
+            ? decoded['message']?.toString()
+            : null;
+        throw Exception(msg ?? 'Failed to load sub-sections');
+      }
+
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Unexpected response format');
+      }
+
+      final data = decoded['data'];
+      if (data is! List) {
+        throw Exception('Unexpected response format');
+      }
+
+      final items = data
+          .whereType<Map>()
+          .map((e) => _ApiSubSection.fromJson(e.cast<String, dynamic>()))
+          .where((s) => s.isActive)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _subSections = items;
+          _loadingSubSections = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _subSections = [];
+          _subSectionsError = e.toString().replaceFirst('Exception: ', '');
+          _loadingSubSections = false;
+        });
+      }
+    }
+  }
 
   String _formatDisplayDate(String dateStr) {
     if (dateStr.isEmpty) return '';
@@ -112,9 +267,11 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
 
   void _submit() {
     if (!_isFormValid) return;
+    final resolvedSubSectionId =
+        _subSectionId.isNotEmpty ? _subSectionId : _categoryId;
     final data = TaskSubmissionFormData(
       categoryId: _categoryId,
-      subSectionId: _subSectionId,
+      subSectionId: resolvedSubSectionId,
       addOnId: _addOnId.isEmpty ? null : _addOnId,
       date: _date,
       time: _time,
@@ -157,7 +314,7 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildServiceTypeDropdown(),
-                    if (_categoryId.isNotEmpty && _serviceStructure != null) ...[
+                    if (_categoryId.isNotEmpty) ...[
                       SizedBox(height: 24.h),
                       _buildSubSectionDropdown(),
                     ],
@@ -246,29 +403,95 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
   }
 
   Widget _buildServiceTypeDropdown() {
+    final options =
+        _categories.map((c) => _DropdownOption(c.id, c.name)).toList();
+    final hint = _loadingCategories
+        ? 'Loading services...'
+        : (_categories.isEmpty ? 'No services available' : 'Select a service');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildLabel('Sparkles', 'Service Type'),
         _dropdown(
           value: _categoryId,
-          hint: 'Select a service',
-          options: _categories.map((c) => _DropdownOption(c.id, c.name)).toList(),
+          hint: hint,
+          options: options,
           onChanged: (v) {
             setState(() {
               _categoryId = v ?? '';
               _subSectionId = '';
               _addOnId = '';
+              _subSections = [];
+              _subSectionsError = null;
             });
+            if (v != null && v.isNotEmpty) {
+              _loadSubSections(v);
+            }
           },
         ),
+        if (_categoriesError != null) ...[
+          SizedBox(height: 8.h),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _categoriesError!,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.white.withOpacity(0.85),
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _loadCatalogServices,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
 
   Widget _buildSubSectionDropdown() {
-    final structure = _serviceStructure;
-    if (structure == null) return const SizedBox.shrink();
+    if (_categoryId.isEmpty) return const SizedBox.shrink();
+    if (_loadingSubSections) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel('Package', 'Service Sub-section'),
+          _disabledDropdown('Loading sub-sections...'),
+        ],
+      );
+    }
+    if (_subSections.isEmpty) {
+      if (_subSectionsError == null) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel('Package', 'Service Sub-section'),
+          _disabledDropdown('No sub-sections available'),
+          SizedBox(height: 6.h),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _subSectionsError!,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.white.withOpacity(0.85),
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => _loadSubSections(_categoryId),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -276,10 +499,8 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
         _dropdown(
           value: _subSectionId,
           hint: 'Select sub-section',
-          options: structure.subSections.map((s) {
-            final price = s.basePrice != null ? ' - \$${s.basePrice!.toInt()}' : '';
-            return _DropdownOption(s.id, '${s.name}$price');
-          }).toList(),
+          options:
+              _subSections.map((s) => _DropdownOption(s.id, s.name)).toList(),
           onChanged: (v) => setState(() => _subSectionId = v ?? ''),
         ),
       ],
@@ -456,6 +677,20 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
     );
   }
 
+  Widget _disabledDropdown(String hint) {
+    return IgnorePointer(
+      child: Opacity(
+        opacity: 0.7,
+        child: _dropdown(
+          value: '',
+          hint: hint,
+          options: const [],
+          onChanged: (_) {},
+        ),
+      ),
+    );
+  }
+
   Widget _buildSubmitButton() {
     return Container(
       padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 16.h),
@@ -482,6 +717,29 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ApiSubSection {
+  final String id;
+  final String name;
+  final bool isActive;
+
+  const _ApiSubSection({
+    required this.id,
+    required this.name,
+    required this.isActive,
+  });
+
+  factory _ApiSubSection.fromJson(Map<String, dynamic> json) {
+    String s(dynamic v) => (v ?? '').toString();
+    final id = s(json['_id']).isNotEmpty ? s(json['_id']) : s(json['id']);
+    final isActive = json['isActive'] == null ? true : json['isActive'] == true;
+    return _ApiSubSection(
+      id: id,
+      name: s(json['name']),
+      isActive: isActive,
     );
   }
 }

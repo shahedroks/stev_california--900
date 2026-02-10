@@ -229,7 +229,7 @@ class _ServiceCardState extends State<_ServiceCard>
                       ),
                     ),
                   ),
-                  SizedBox(height: 12.h),
+                  SizedBox(height: 40.h),
                   Text(
                     widget.service.name,
                     style: TextStyle(

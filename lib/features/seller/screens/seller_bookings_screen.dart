@@ -1,4 +1,4 @@
-// import 'package:flutter/material.dart';
+
 // import 'package:flutter_screenutil/flutter_screenutil.dart';
 // import 'package:renizo/features/bookings/data/bookings_mock_data.dart';
 // import 'package:renizo/features/seller/models/seller_job_item.dart';
@@ -481,6 +481,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:renizo/features/seller/models/seller_job_item.dart';
+import 'package:renizo/core/widgets/app_logo_button.dart';
 
 import '../../bookings/data/bookings_mock_data.dart';
 import '../data/bookings_riverpod.dart';
@@ -492,7 +493,6 @@ class _BookingsColors {
   static const tabBlue = Color(0xFF003E93);
   static const gray50 = Color(0xFFF9FAFB);
   static const gray100 = Color(0xFFF3F4F6);
-  static const gray200 = Color(0xFFE5E7EB);
   static const gray500 = Color(0xFF6B7280);
   static const gray600 = Color(0xFF4B5563);
   static const gray700 = Color(0xFF374151);
@@ -638,6 +638,12 @@ class _SellerBookingsScreenState extends ConsumerState<SellerBookingsScreen> {
                 ),
                 backgroundColor: _BookingsColors.blueBg,
                 elevation: 0,
+                actions: [
+                  Padding(
+                    padding: EdgeInsets.only(right: 12.w),
+                    child: AppLogoButton(size: 34),
+                  ),
+                ],
               )
             : null,
         body: const Center(
@@ -659,6 +665,12 @@ class _SellerBookingsScreenState extends ConsumerState<SellerBookingsScreen> {
                 ),
                 backgroundColor: _BookingsColors.blueBg,
                 elevation: 0,
+                actions: [
+                  Padding(
+                    padding: EdgeInsets.only(right: 12.w),
+                    child: AppLogoButton(size: 34),
+                  ),
+                ],
               )
             : null,
         body: Center(
@@ -827,6 +839,12 @@ class _SellerBookingsScreenState extends ConsumerState<SellerBookingsScreen> {
             ),
             backgroundColor: _BookingsColors.blueBg,
             elevation: 0,
+            actions: [
+              Padding(
+                padding: EdgeInsets.only(right: 12.w),
+                child: AppLogoButton(size: 34),
+              ),
+            ],
           ),
           body: content,
         );

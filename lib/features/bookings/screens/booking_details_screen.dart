@@ -1,7 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import 'package:renizo/features/bookings/data/bookings_mock_data.dart';
+import 'package:renizo/core/widgets/app_logo_button.dart';
+import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
+import 'package:renizo/features/seller/screens/provider_app_screen.dart';
 
 /// Booking details – full conversion from React BookingDetails.tsx.
 /// Blue background, status timeline, service provider, service details, payment info.
@@ -10,6 +14,7 @@ class BookingDetailsScreen extends StatefulWidget {
     super.key,
     required this.bookingId,
     required this.onBack,
+    this.initialBooking,
     this.onOpenChat,
     this.onUpdateBooking,
     this.userRole = UserRole.customer,
@@ -17,6 +22,7 @@ class BookingDetailsScreen extends StatefulWidget {
 
   final String bookingId;
   final VoidCallback onBack;
+  final BookingDetailsModel? initialBooking;
   final void Function(String bookingId)? onOpenChat;
   final void Function(String bookingId, BookingStatus status)? onUpdateBooking;
   final UserRole userRole;
@@ -37,6 +43,14 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
 
   Future<void> _loadBooking() async {
     setState(() => _loading = true);
+    if (widget.initialBooking != null) {
+      setState(() {
+        _booking = widget.initialBooking;
+        _notFound = false;
+        _loading = false;
+      });
+      return;
+    }
     final b = await getBookingById(widget.bookingId);
     if (!mounted) return;
     setState(() {
@@ -55,7 +69,10 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
   @override
   void didUpdateWidget(covariant BookingDetailsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.bookingId != widget.bookingId) _loadBooking();
+    if (oldWidget.bookingId != widget.bookingId ||
+        oldWidget.initialBooking != widget.initialBooking) {
+      _loadBooking();
+    }
   }
 
   void _onOpenChat() {
@@ -88,6 +105,14 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
         paymentStatus: _booking!.paymentStatus,
         totalAmount: _booking!.totalAmount,
       ));
+    }
+  }
+
+  void _goHome() {
+    if (widget.userRole == UserRole.provider) {
+      context.go(ProviderAppScreen.routeName);
+    } else {
+      context.go(BottomNavBar.routeName);
     }
   }
 
@@ -170,20 +195,29 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: widget.onBack,
-            borderRadius: BorderRadius.circular(8.r),
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 8.h),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.chevron_left, size: 24.sp, color: Colors.white),
-                  SizedBox(width: 4.w),
-                  Text('Back', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: Colors.white)),
-                ],
+          Row(
+            children: [
+              InkWell(
+                onTap: widget.onBack,
+                borderRadius: BorderRadius.circular(8.r),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.h),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.chevron_left, size: 24.sp, color: Colors.white),
+                      SizedBox(width: 4.w),
+                      Text('Back', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: Colors.white)),
+                    ],
+                  ),
+                ),
               ),
-            ),
+              const Spacer(),
+              AppLogoButton(
+                size: 36,
+                onTap: _goHome,
+              ),
+            ],
           ),
           Text(
             'Booking Details',

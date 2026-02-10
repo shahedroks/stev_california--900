@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:http/http.dart' as http;
+import 'package:renizo/core/constants/api_control/user_api.dart';
 import 'package:renizo/core/constants/color_control/all_color.dart';
 import 'package:renizo/core/models/town.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
@@ -29,6 +31,7 @@ class TownSelectionScreen extends ConsumerStatefulWidget {
 class _TownSelectionScreenState extends ConsumerState<TownSelectionScreen> {
   String _searchQuery = '';
   String? _selectedTownId;
+  bool _isSaving = false;
 
   List<Town> _filter(List<Town> towns) {
     if (_searchQuery.isEmpty) return towns;
@@ -40,7 +43,7 @@ class _TownSelectionScreenState extends ConsumerState<TownSelectionScreen> {
 
   Future<void> _onContinue(List<Town> towns) async {
     final selectedId = _selectedTownId;
-    if (selectedId == null) return;
+    if (selectedId == null || _isSaving) return;
 
     final town = towns.firstWhere(
       (t) => t.id == selectedId,
@@ -48,18 +51,59 @@ class _TownSelectionScreenState extends ConsumerState<TownSelectionScreen> {
     );
 
     final user = await AuthLocalStorage.getCurrentUser();
-    if (user != null) {
+    if (user == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in again.')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final headers = await AuthLocalStorage.authHeaders();
+      final response = await http.patch(
+        Uri.parse(UserApi.updateTown),
+        headers: headers ?? {'Content-Type': 'application/json'},
+        body: jsonEncode({'townId': town.id}),
+      );
+
+      final dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {
+        throw Exception('Invalid response from server');
+      }
+
+      final body =
+          decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+      if (response.statusCode >= 400) {
+        final msg = body['message']?.toString() ?? 'HTTP ${response.statusCode}';
+        throw Exception(msg);
+      }
+      final status = (body['status'] ?? '').toString().toLowerCase();
+      if (status != 'success') {
+        final msg = body['message']?.toString() ?? 'Unexpected status: $status';
+        throw Exception(msg);
+      }
+
       // ✅ state নাই, তাই id/name/isActive save করা হলো
       final payload = jsonEncode({
         'id': town.id,
         'name': town.name,
         'isActive': town.isActive,
       });
-
       await AuthLocalStorage.setSelectedTown(user.id, payload);
-    }
 
-    widget.onSelectTown(town);
+      widget.onSelectTown(town);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -339,7 +383,9 @@ class _TownSelectionScreenState extends ConsumerState<TownSelectionScreen> {
                       child: SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed: (_selectedTownId == null || towns.isEmpty)
+                          onPressed: (_selectedTownId == null ||
+                                  towns.isEmpty ||
+                                  _isSaving)
                               ? null
                               : () => _onContinue(towns),
                           style: FilledButton.styleFrom(
@@ -354,7 +400,7 @@ class _TownSelectionScreenState extends ConsumerState<TownSelectionScreen> {
                             ),
                           ),
                           child: Text(
-                            'Continue',
+                            _isSaving ? 'Saving...' : 'Continue',
                             style: TextStyle(
                               fontSize: 16.sp,
                               fontWeight: FontWeight.w600,
