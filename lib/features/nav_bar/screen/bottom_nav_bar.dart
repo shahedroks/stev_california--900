@@ -1,11 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:renizo/core/models/town.dart';
+import 'package:renizo/core/utils/auth_local_storage.dart';
 import 'package:renizo/features/bookings/screens/bookings_screen.dart';
 import 'package:renizo/features/home/screens/customer_home_screen.dart';
 import 'package:renizo/features/messages/screens/messages_screen.dart';
+import 'package:renizo/features/profile/logic/user_riverpod.dart';
 import 'package:renizo/features/profile/screens/profile_screen.dart';
 import 'package:renizo/features/search/screens/search_screen.dart';
+import 'package:renizo/features/town/screens/town_selection_screen.dart';
 
 final selectedIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -15,38 +21,131 @@ const Color _navSelectedStart = Color(0xFF408AF1);
 const Color _navSelectedEnd = Color(0xFF5ca3f5);
 const Color _navUnselected = Color(0xB3FFFFFF); // white/70
 
-class BottomNavBar extends ConsumerWidget {
+/// If town is already selected → show Home (dashboard). If town is null → show TownSelectionScreen; after select → dashboard.
+class BottomNavBar extends ConsumerStatefulWidget {
   const BottomNavBar({super.key});
   static const String routeName = '/BottomNavBar';
-  static const List<Widget> _pages = [
-    CustomerHomeScreen(),
-    SearchScreen(),
-    BookingsScreen(),
-    MessagesScreen(),
-    ProfileScreen(),
-  ];
-
-  /// Tabs and icons match image: Home, Search, Bookings, Messages, Profile.
-  static const List<_NavItem> _tabs = [
-    _NavItem(icon: Icons.home_rounded, label: 'Home'),
-    _NavItem(icon: Icons.search_rounded, label: 'Search'),
-    _NavItem(icon: Icons.calendar_today_rounded, label: 'Bookings'),
-    _NavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Messages'),
-    _NavItem(icon: Icons.person_outline_rounded, label: 'Profile'),
-  ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BottomNavBar> createState() => _BottomNavBarState();
+}
+
+class _BottomNavBarState extends ConsumerState<BottomNavBar> {
+  Town? _selectedTown;
+  bool _townChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSelectedTown();
+  }
+
+  Future<void> _loadSelectedTown() async {
+    final user = await AuthLocalStorage.getCurrentUser();
+    if (user == null) {
+      if (mounted) setState(() => _townChecked = true);
+      return;
+    }
+    final townJson = await AuthLocalStorage.getSelectedTown(user.id);
+    if (townJson == null || townJson.isEmpty) {
+      // Fallback: pull town from profile API if available
+      try {
+        final me = await ref.read(userMeApiProvider).fetchMe();
+        if (me.townId != null && me.townId!.isNotEmpty) {
+          final payload = jsonEncode({
+            'id': me.townId!,
+            'name': me.townName ?? '',
+            'isActive': true,
+          });
+          await AuthLocalStorage.setSelectedTown(user.id, payload);
+          if (mounted) {
+            setState(() {
+              _selectedTown = Town(
+                id: me.townId!,
+                name: me.townName ?? '',
+                isActive: true,
+              );
+              _townChecked = true;
+            });
+          }
+          return;
+        }
+      } catch (_) {
+        // ignore and fall back to selection
+      }
+      if (mounted) setState(() {
+        _selectedTown = null;
+        _townChecked = true;
+      });
+      return;
+    }
+    try {
+      final map = jsonDecode(townJson) as Map<String, dynamic>?;
+      if (map != null && map['id'] != null) {
+        if (mounted) {
+          setState(() {
+            _selectedTown = Town(
+              id: (map['id'] ?? '').toString(),
+              name: (map['name'] ?? '').toString(),
+              isActive: (map['isActive'] ?? true) == true,
+            );
+            _townChecked = true;
+          });
+        }
+        return;
+      }
+    } catch (_) {}
+    if (mounted) setState(() {
+      _selectedTown = null;
+      _townChecked = true;
+    });
+  }
+
+  void _onTownSelected(Town town) {
+    setState(() => _selectedTown = town);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectedIndex = ref.watch(selectedIndexProvider);
 
-    return Scaffold(
-      body: IndexedStack(
-        index: selectedIndex,
-        children: _pages,
+    if (!_townChecked) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_selectedTown == null) {
+      return TownSelectionScreen(
+        onSelectTown: _onTownSelected,
+        canClose: false,
+      );
+    }
+
+    final town = _selectedTown!;
+    final pages = <Widget>[
+      CustomerHomeScreen(
+        selectedTownId: town.id,
+        selectedTownName: town.name,
       ),
+      SearchScreen(selectedTownId: town.id),
+      BookingsScreen(townId: town.id),
+      MessagesScreen(
+        selectedTownId: town.id,
+        selectedTownName: town.name,
+      ),
+      ProfileScreen(
+        selectedTownId: town.id,
+        selectedTownName: town.name,
+      ),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(index: selectedIndex, children: pages),
       bottomNavigationBar: CustomerBottomNavBar(
         currentIndex: selectedIndex,
-        onTabTap: (index) => ref.read(selectedIndexProvider.notifier).state = index,
+        onTabTap: (index) =>
+            ref.read(selectedIndexProvider.notifier).state = index,
       ),
     );
   }
@@ -129,7 +228,7 @@ class _NavBarItem extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16.r),
         child: Padding(
-          padding: EdgeInsets.symmetric( horizontal: 8.w),
+          padding: EdgeInsets.symmetric(horizontal: 8.w),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -132,17 +132,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     // Navigate by role: provider -> provider app; customer -> onboarding/town/home
     if (user.isProvider) {
-      context.go(ProviderAppScreen.routeName);
+      context.push(ProviderAppScreen.routeName);
     } else {
       final hasOnboarded = await AuthLocalStorage.hasOnboarded(user.id);
       if (!hasOnboarded) {
-        context.go(OnboardingSlidesScreen.routeName);
+        context.push(OnboardingSlidesScreen.routeName);
       } else {
         final town = await AuthLocalStorage.getSelectedTown(user.id);
         if (town == null || town.isEmpty) {
-          context.go(TownSelectionScreen.routeName);
+          context.push(TownSelectionScreen.routeName);
         } else {
-          context.go(BottomNavBar.routeName);
+          context.push(BottomNavBar.routeName);
         }
       }
     }

@@ -35,8 +35,15 @@ class SellerProviderModel {
           if (e is Map) {
             return ProviderService.fromJson(e.cast<String, dynamic>());
           }
-          if (e is String) return ProviderService(name: e, description: '');
-          return ProviderService(name: toStr(e), description: '');
+          if (e is String) {
+            return ProviderService(id: '', name: e, description: '', iconUrl: '');
+          }
+          return ProviderService(
+            id: '',
+            name: toStr(e),
+            description: '',
+            iconUrl: '',
+          );
         })
         .where((s) => s.name.trim().isNotEmpty)
         .toList();
@@ -101,16 +108,25 @@ class ProviderStats {
 }
 
 class ProviderService {
+  final String id;
   final String name;
   final String description;
+  final String iconUrl;
 
-  const ProviderService({required this.name, required this.description});
+  const ProviderService({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.iconUrl,
+  });
 
   factory ProviderService.fromJson(Map<String, dynamic> json) {
     String toStr(dynamic v) => (v ?? '').toString();
     return ProviderService(
+      id: toStr(json['_id'] ?? json['id']),
       name: toStr(json['name'] ?? json['title']),
       description: toStr(json['description'] ?? json['desc'] ?? ''),
+      iconUrl: toStr(json['iconUrl'] ?? json['icon'] ?? json['image']),
     );
   }
 }

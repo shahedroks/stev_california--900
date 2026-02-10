@@ -1,18 +1,19 @@
-
-import 'package:renizo/core/constants/api_control/global_api.dart';
-
-
-
-// class ProviderApi {
-//   static final String _base_api = "$api/providers";
-//   static String get profileScreen => _base_api + "/profile_screen";
-// }
-
 class ProviderApi {
-  static const String api = "http://103.208.183.248:5000/api/v1";
-  static String get profileScreen => "$api/providers/me/profile/screen";
+  //static const String api = "http://103.208.183.248:5000/api/v1";
+  static const String api = "http://103.208.181.235:5000/api/v1";
+  static String get profileScreen => "$api/providers/me/profile";
   static String get dashboard => "$api/providers/me/dashboard";
   static String get myBookings => "$api/bookings/provider/me";
+  static String get catalogServices => "$api/catalog/services";
+  static Uri catalogSubSectionsUri(String serviceId) {
+    return Uri.parse("$api/catalog/subsections").replace(
+      queryParameters: {'serviceId': serviceId},
+    );
+  }
+  static String get serviceAreas => "$api/providers/me/service-areas";
+  static String get acceptingJobs => "$api/providers/me/accepting-jobs";
+  static String publicProfile(String providerUserId) =>
+      "$api/providers/public/$providerUserId";
 
   // Towns
   static String get allTowns => "$api/towns/all";
