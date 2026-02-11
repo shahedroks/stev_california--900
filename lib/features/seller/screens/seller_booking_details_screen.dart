@@ -63,6 +63,55 @@ class _SellerBookingDetailsScreenState extends ConsumerState<SellerBookingDetail
     }
   }
 
+  bool _isAccepting = false;
+  bool _isDeclining = false;
+
+  Future<void> _acceptBooking() async {
+    if (_isAccepting) return;
+    setState(() => _isAccepting = true);
+    try {
+      final api = ref.read(providerMyBookingsApiProvider);
+      await api.acceptBooking(widget.bookingId);
+      if (!mounted) return;
+      ref.invalidate(providerBookingByIdProvider(widget.bookingId));
+      ref.invalidate(providerMyBookingsProvider);
+      _onUpdateStatus(BookingStatus.accepted);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Booking accepted'), backgroundColor: Color(0xFF059669)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isAccepting = false);
+    }
+  }
+
+  Future<void> _declineBooking() async {
+    if (_isDeclining) return;
+    setState(() => _isDeclining = true);
+    try {
+      final api = ref.read(providerMyBookingsApiProvider);
+      await api.rejectBooking(widget.bookingId);
+      if (!mounted) return;
+      ref.invalidate(providerBookingByIdProvider(widget.bookingId));
+      ref.invalidate(providerMyBookingsProvider);
+      _onUpdateStatus(BookingStatus.rejected);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Booking declined'), backgroundColor: Colors.orange),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isDeclining = false);
+    }
+  }
+
   void _onUpdateStatus(BookingStatus status) {
     widget.onUpdateBooking?.call(widget.bookingId, status);
     if (widget.onUpdateBooking == null && mounted) {
@@ -623,9 +672,9 @@ class _SellerBookingDetailsScreenState extends ConsumerState<SellerBookingDetail
             children: [
               Expanded(
                 child: _actionButton(
-                  label: 'Decline',
+                  label: _isDeclining ? 'Declining...' : 'Decline',
                   icon: Icons.close,
-                  onTap: () => _onUpdateStatus(BookingStatus.cancelled),
+                  onTap: _isDeclining ? () {} : _declineBooking,
                   secondary: true,
                 ),
               ),
@@ -634,7 +683,7 @@ class _SellerBookingDetailsScreenState extends ConsumerState<SellerBookingDetail
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () => _onUpdateStatus(BookingStatus.accepted),
+                    onTap: _isAccepting ? null : _acceptBooking,
                     borderRadius: BorderRadius.circular(12.r),
                     child: Container(
                       padding: EdgeInsets.symmetric(vertical: 16.h),
@@ -652,21 +701,29 @@ class _SellerBookingDetailsScreenState extends ConsumerState<SellerBookingDetail
                           ),
                         ],
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_circle, size: 20.sp, color: Colors.white),
-                          SizedBox(width: 8.w),
-                          Text(
-                            'Accept Job',
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                      child: _isAccepting
+                          ? Center(
+                              child: SizedBox(
+                                height: 24.h,
+                                width: 24.w,
+                                child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_circle, size: 20.sp, color: Colors.white),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'Accept Job',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ),

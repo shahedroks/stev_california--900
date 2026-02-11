@@ -92,6 +92,46 @@ class ProviderMyBookingsApi {
     );
   }
 
+  /// PATCH /bookings/:id/accept – provider accepts the booking.
+  Future<void> acceptBooking(String bookingId) async {
+    final token = await AuthLocalStorage.getToken();
+    final uri = Uri.parse(ProviderApi.bookingAccept(bookingId));
+    final res = await http.patch(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (token != null && token.toString().isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+    );
+    final decoded = jsonDecode(res.body);
+    final body = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+    if (res.statusCode >= 400) {
+      final msg = body['message']?.toString() ?? 'HTTP ${res.statusCode}';
+      throw Exception(msg);
+    }
+  }
+
+  /// PATCH /bookings/:id/rejected – provider declines the booking.
+  Future<void> rejectBooking(String bookingId) async {
+    final token = await AuthLocalStorage.getToken();
+    final uri = Uri.parse(ProviderApi.bookingReject(bookingId));
+    final res = await http.patch(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if (token != null && token.toString().isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+    );
+    final decoded = jsonDecode(res.body);
+    final body = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+    if (res.statusCode >= 400) {
+      final msg = body['message']?.toString() ?? 'HTTP ${res.statusCode}';
+      throw Exception(msg);
+    }
+  }
+
   Future<ProviderMyBookingsData> fetchMyBookings() async {
     final token = await AuthLocalStorage.getToken();
 
