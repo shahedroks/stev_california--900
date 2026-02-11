@@ -135,6 +135,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final lastMessages = {
       BookingStatus.pending:
           "Thanks for booking! I'll confirm the details shortly.",
+      BookingStatus.rejected: 'Message received',
+      BookingStatus.accepted: 'Please complete payment to confirm.',
       BookingStatus.confirmed: "See you on the scheduled date!",
       BookingStatus.inProgress: "I'm on my way to your location.",
       BookingStatus.completed: 'Thanks for choosing our service!',
@@ -209,6 +211,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
     switch (status) {
       case BookingStatus.pending:
         return (const Color(0xFFFEF3C7), const Color(0xFFB45309));
+      case BookingStatus.rejected:
+        return (const Color(0xFFFEE2E2), const Color(0xFFB91C1C));
+      case BookingStatus.accepted:
+        return (const Color(0xFFDCFCE7), const Color(0xFF15803D));
       case BookingStatus.confirmed:
         return (const Color(0xFFDCFCE7), const Color(0xFF15803D));
       case BookingStatus.inProgress:
@@ -224,6 +230,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
     switch (status) {
       case BookingStatus.pending:
         return 'pending';
+      case BookingStatus.rejected:
+        return 'rejected';
+      case BookingStatus.accepted:
+        return 'accepted';
       case BookingStatus.confirmed:
         return 'confirmed';
       case BookingStatus.inProgress:

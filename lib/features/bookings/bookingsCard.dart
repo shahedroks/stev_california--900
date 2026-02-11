@@ -51,6 +51,10 @@ class _BookingCardState extends State<BookingCard>
     switch (status) {
       case BookingStatus.pending:
         return (const Color(0xFFFEF3C7), const Color(0xFFB45309));
+      case BookingStatus.rejected:
+        return (const Color(0xFFFEE2E2), const Color(0xFFB91C1C));
+      case BookingStatus.accepted:
+        return (const Color(0xFFDCFCE7), const Color(0xFF15803D));
       case BookingStatus.confirmed:
         return (const Color(0xFFDCFCE7), const Color(0xFF15803D));
       case BookingStatus.inProgress:
@@ -66,6 +70,10 @@ class _BookingCardState extends State<BookingCard>
     switch (status) {
       case BookingStatus.pending:
         return 'Pending';
+      case BookingStatus.rejected:
+        return 'Rejected';
+      case BookingStatus.accepted:
+        return 'Accepted';
       case BookingStatus.confirmed:
         return 'Confirmed';
       case BookingStatus.inProgress:

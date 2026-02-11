@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:renizo/core/constants/api_control/provider_api.dart';
 import 'package:renizo/core/models/service_category.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
-import 'package:renizo/features/bookings/data/task_submission_service_structure.dart';
 import 'package:renizo/features/bookings/screens/seller_matching_screen.dart';
 
 /// Task submission form – full conversion from React TaskSubmission.tsx.
@@ -15,12 +14,15 @@ class TaskSubmissionScreen extends StatefulWidget {
   const TaskSubmissionScreen({
     super.key,
     required this.selectedTownId,
+    this.initialCategoryId,
     this.onSubmit,
   });
 
   static const String routeName = '/task-submission';
 
   final String selectedTownId;
+  /// If set (e.g. from search), this service/category is pre-selected.
+  final String? initialCategoryId;
   /// Called with form data when user taps "Find Available Providers".
   final void Function(TaskSubmissionFormData data)? onSubmit;
 
@@ -60,6 +62,9 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
   List<_ApiSubSection> _subSections = [];
   bool _loadingSubSections = false;
   String? _subSectionsError;
+  List<_ApiAddOn> _addOns = [];
+  bool _loadingAddOns = false;
+  String? _addOnsError;
   final List<String> _timeOptions = [
     'Morning (8AM - 12PM)',
     'Noon (12PM - 3PM)',
@@ -79,9 +84,6 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
   static const Color _focusBlue = Color(0xFF408AF1);
   /// Dropdown overlay – dark blue-grey with white text and checkmark for selected (matches design).
   static const Color _dropdownMenuBg = Color(0xFF2C3E50);
-
-  TaskServiceStructure? get _serviceStructure =>
-      _categoryId.isEmpty ? null : getTaskServiceStructure(_categoryId);
 
   bool get _isFormValid {
     final subSectionOk =
@@ -160,6 +162,14 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
           _categories = services;
           _loadingCategories = false;
         });
+        final initialId = widget.initialCategoryId;
+        if (initialId != null &&
+            initialId.isNotEmpty &&
+            services.any((c) => c.id == initialId)) {
+          setState(() => _categoryId = initialId);
+          _loadSubSections(initialId);
+          _loadAddOns(initialId);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -236,6 +246,70 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
     }
   }
 
+  Future<void> _loadAddOns(String serviceId) async {
+    setState(() {
+      _loadingAddOns = true;
+      _addOnsError = null;
+      _addOns = [];
+      _addOnId = '';
+    });
+    try {
+      final token = await AuthLocalStorage.getToken();
+      final res = await http.get(
+        ProviderApi.catalogAddonsUri(serviceId),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.toString().isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      );
+
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(res.body);
+      } catch (_) {
+        throw Exception('Invalid response from server');
+      }
+
+      if (res.statusCode >= 400) {
+        final msg = (decoded is Map<String, dynamic>)
+            ? decoded['message']?.toString()
+            : null;
+        throw Exception(msg ?? 'Failed to load add-ons');
+      }
+
+      if (decoded is! Map<String, dynamic>) {
+        throw Exception('Unexpected response format');
+      }
+
+      final data = decoded['data'];
+      if (data is! List) {
+        throw Exception('Unexpected response format');
+      }
+
+      final items = data
+          .whereType<Map>()
+          .map((e) => _ApiAddOn.fromJson(e.cast<String, dynamic>()))
+          .where((a) => a.isActive)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _addOns = items;
+          _loadingAddOns = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _addOns = [];
+          _addOnsError = e.toString().replaceFirst('Exception: ', '');
+          _loadingAddOns = false;
+        });
+      }
+    }
+  }
+
   String _formatDisplayDate(String dateStr) {
     if (dateStr.isEmpty) return '';
     final parts = dateStr.split('-');
@@ -265,7 +339,14 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
     }
   }
 
-  void _submit() {
+  /// Builds ISO datetime for API from date + time slot (e.g. Morning -> 10:00).
+  String _scheduledAtISO() {
+    if (_date.isEmpty) return '';
+    final timeHour = _time.contains('Morning') ? '10' : _time.contains('Noon') ? '13' : '16';
+    return '${_date}T${timeHour}:00:00.000Z';
+  }
+
+  Future<void> _submit() async {
     if (!_isFormValid) return;
     final resolvedSubSectionId =
         _subSectionId.isNotEmpty ? _subSectionId : _categoryId;
@@ -279,6 +360,7 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
       notes: _notes.isEmpty ? null : _notes,
     );
     widget.onSubmit?.call(data);
+
     if (!mounted) return;
     final bookingId = 'booking_${DateTime.now().millisecondsSinceEpoch}';
     Navigator.of(context).push<void>(
@@ -287,13 +369,11 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
           categoryId: _categoryId,
           selectedTownId: widget.selectedTownId,
           bookingId: bookingId,
-          onSelectProvider: (provider) {
-            if (!context.mounted) return;
-            Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Selected ${provider.displayName}')),
-            );
-          },
+          searchSubsectionId: resolvedSubSectionId,
+          searchAddonIds: _addOnId.isEmpty ? const [] : [_addOnId],
+          searchScheduledAtISO: _scheduledAtISO(),
+          searchAddress: _address,
+          searchNotes: _notes.isEmpty ? null : _notes,
         ),
       ),
     );
@@ -318,7 +398,7 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
                       SizedBox(height: 24.h),
                       _buildSubSectionDropdown(),
                     ],
-                    if (_serviceStructure != null && _subSectionId.isNotEmpty) ...[
+                    if (_categoryId.isNotEmpty) ...[
                       SizedBox(height: 24.h),
                       _buildAddOnDropdown(),
                     ],
@@ -351,11 +431,15 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          TextButton.icon(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(Icons.chevron_left, size: 24.sp, color: Colors.white),
-            label: Text('Back', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: Colors.white)),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Icon(Icons.chevron_left, size: 24.sp, color: Colors.white),
+              label: Text('Back', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500, color: Colors.white)),
+            ),
           ),
           Text(
             'Create Booking',
@@ -423,9 +507,12 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
               _addOnId = '';
               _subSections = [];
               _subSectionsError = null;
+              _addOns = [];
+              _addOnsError = null;
             });
             if (v != null && v.isNotEmpty) {
               _loadSubSections(v);
+              _loadAddOns(v);
             }
           },
         ),
@@ -508,22 +595,55 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
   }
 
   Widget _buildAddOnDropdown() {
-    final structure = _serviceStructure;
-    if (structure == null) return const SizedBox.shrink();
+    if (_categoryId.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildLabel('Plus', 'Add-Ons', required: false, optional: true),
-        _dropdown(
-          value: _addOnId,
-          hint: 'No add-ons',
-          allowEmptyValue: true,
-          options: [
-            const _DropdownOption('', 'No add-ons'),
-            ...structure.addOns.map((a) => _DropdownOption(a.id, '${a.name} - +\$${a.price.toInt()}')),
-          ],
-          onChanged: (v) => setState(() => _addOnId = v ?? ''),
-        ),
+        if (_loadingAddOns)
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 12.h),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 20.w,
+                  height: 20.h,
+                  child: const CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12.w),
+                Text('Loading add-ons...', style: TextStyle(fontSize: 14.sp, color: Colors.grey)),
+              ],
+            ),
+          )
+        else if (_addOnsError != null)
+          Padding(
+            padding: EdgeInsets.only(bottom: 8.h),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _addOnsError!,
+                    style: TextStyle(fontSize: 13.sp, color: Colors.red.shade700),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _loadAddOns(_categoryId),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          )
+        else
+          _dropdown(
+            value: _addOnId,
+            hint: 'No add-ons',
+            allowEmptyValue: true,
+            options: [
+              const _DropdownOption('', 'No add-ons'),
+              ..._addOns.map((a) => _DropdownOption(a.id, a.name)),
+            ],
+            onChanged: (v) => setState(() => _addOnId = v ?? ''),
+          ),
       ],
     );
   }
@@ -739,6 +859,32 @@ class _ApiSubSection {
     return _ApiSubSection(
       id: id,
       name: s(json['name']),
+      isActive: isActive,
+    );
+  }
+}
+
+class _ApiAddOn {
+  final String id;
+  final String name;
+  final String description;
+  final bool isActive;
+
+  const _ApiAddOn({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.isActive,
+  });
+
+  factory _ApiAddOn.fromJson(Map<String, dynamic> json) {
+    String s(dynamic v) => (v ?? '').toString();
+    final id = s(json['_id']).isNotEmpty ? s(json['_id']) : s(json['id']);
+    final isActive = json['isActive'] == null ? true : json['isActive'] == true;
+    return _ApiAddOn(
+      id: id,
+      name: s(json['name']),
+      description: s(json['description']),
       isActive: isActive,
     );
   }

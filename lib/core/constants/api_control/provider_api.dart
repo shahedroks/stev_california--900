@@ -4,9 +4,15 @@ class ProviderApi {
   static String get profileScreen => "$api/providers/me/profile";
   static String get dashboard => "$api/providers/me/dashboard";
   static String get myBookings => "$api/bookings/provider/me";
+  static String bookingById(String bookingId) => "$api/bookings/provider/$bookingId";
   static String get catalogServices => "$api/catalog/services";
   static Uri catalogSubSectionsUri(String serviceId) {
     return Uri.parse("$api/catalog/subsections").replace(
+      queryParameters: {'serviceId': serviceId},
+    );
+  }
+  static Uri catalogAddonsUri(String serviceId) {
+    return Uri.parse("$api/catalog/addons").replace(
       queryParameters: {'serviceId': serviceId},
     );
   }
@@ -14,6 +20,9 @@ class ProviderApi {
   static String get acceptingJobs => "$api/providers/me/accepting-jobs";
   static String publicProfile(String providerUserId) =>
       "$api/providers/public/$providerUserId";
+
+  /// POST body: townId, serviceId, subsectionId (List<String>), addonIds (List<String>), scheduledAtISO.
+  static String get providerSearch => "$api/bookings/providers/search";
 
   // Towns
   static String get allTowns => "$api/towns/all";

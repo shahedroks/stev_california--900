@@ -9,7 +9,7 @@ import 'package:renizo/core/utils/auth_local_storage.dart';
 import 'package:renizo/core/widgets/app_logo_button.dart';
 import 'package:renizo/features/auth/screens/login_screen.dart';
 import 'package:renizo/features/bookings/data/bookings_mock_data.dart';
-import 'package:renizo/features/bookings/screens/booking_details_screen.dart';
+import 'package:renizo/features/seller/screens/seller_booking_details_screen.dart';
 import 'package:renizo/features/messages/screens/chat_screen.dart';
 import 'package:renizo/features/notifications/screens/notifications_screen.dart';
 import 'package:renizo/features/seller/data/bookings_riverpod.dart';
@@ -223,8 +223,10 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
 
   BookingStatus _mapProviderBookingStatus(String raw) {
     final s = raw.trim().toLowerCase();
-    if (s == 'pending') return BookingStatus.pending;
-    if (s == 'confirmed') return BookingStatus.confirmed;
+    if (s == 'pending' || s == 'pending_payment') return BookingStatus.pending;
+    if (s == 'rejected') return BookingStatus.rejected;
+    if (s == 'accepted') return BookingStatus.accepted;
+    if (s == 'paid' || s == 'confirmed') return BookingStatus.confirmed;
     if (s == 'inprogress' || s == 'in_progress' || s == 'in-progress') {
       return BookingStatus.inProgress;
     }
@@ -439,26 +441,12 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
     switch (_currentOverlay) {
       case 'booking-details':
         if (_selectedBookingId == null) return const SizedBox.shrink();
-        final bookingsData =
-            ref.watch(providerMyBookingsProvider).asData?.value;
-        ProviderBookingItem? selected;
-        if (bookingsData != null) {
-          for (final item in bookingsData.items) {
-            if (item.id == _selectedBookingId) {
-              selected = item;
-              break;
-            }
-          }
-        }
-        final detailsModel =
-            selected == null ? null : _buildBookingDetailsModel(selected);
-        return BookingDetailsScreen(
+        return SellerBookingDetailsScreen(
           bookingId: _selectedBookingId!,
           onBack: _onBackFromBookingDetails,
           onOpenChat: (id) => _onOpenChat(id),
           onUpdateBooking: _onUpdateBooking,
-          userRole: UserRole.provider,
-          initialBooking: detailsModel,
+          initialBooking: null,
         );
       case 'chat':
         if (_selectedChatId == null) return const SizedBox.shrink();

@@ -53,6 +53,8 @@ class SearchApiData {
 /// A provider returned from the search API.
 class SearchApiProvider {
   final String id;
+  /// User id – use as providerId when creating booking (API expects userId, not provider _id).
+  final String? userId;
   final String name;
   final String avatar;
   final double rating;
@@ -64,6 +66,7 @@ class SearchApiProvider {
 
   const SearchApiProvider({
     required this.id,
+    this.userId,
     required this.name,
     required this.avatar,
     required this.rating,
@@ -75,8 +78,9 @@ class SearchApiProvider {
   });
 
   factory SearchApiProvider.fromJson(Map<String, dynamic> json) {
-    // id fallback: _id → id
+    // id = provider document _id
     final id = _s(json['_id']).isNotEmpty ? _s(json['_id']) : _s(json['id']);
+    final userId = _s(json['userId']).isNotEmpty ? _s(json['userId']) : null;
 
     // name fallback: name → fullName → businessName
     final name = _s(json['name']).isNotEmpty
@@ -101,6 +105,7 @@ class SearchApiProvider {
 
     return SearchApiProvider(
       id: id,
+      userId: userId,
       name: name,
       avatar: avatar,
       rating: _asDouble(json['rating'], 0.0),
@@ -113,27 +118,34 @@ class SearchApiProvider {
   }
 }
 
-/// A service/category returned from the search API.
+/// A service/category returned from the search API or catalog/services.
 class SearchApiService {
   final String id;
   final String name;
+  final String slug;
   final String description;
-  final String icon;
+  /// URL for the service icon (from API field iconUrl).
+  final String iconUrl;
 
   const SearchApiService({
     required this.id,
     required this.name,
+    this.slug = '',
     required this.description,
-    required this.icon,
+    required this.iconUrl,
   });
 
   factory SearchApiService.fromJson(Map<String, dynamic> json) {
     final id = _s(json['_id']).isNotEmpty ? _s(json['_id']) : _s(json['id']);
+    final iconUrl = _s(json['iconUrl']).isNotEmpty
+        ? _s(json['iconUrl'])
+        : _s(json['icon']);
     return SearchApiService(
       id: id,
       name: _s(json['name']),
+      slug: _s(json['slug']),
       description: _s(json['description']),
-      icon: _s(json['icon']),
+      iconUrl: iconUrl,
     );
   }
 }
