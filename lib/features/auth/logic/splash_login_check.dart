@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:renizo/core/services/push_notification_service.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
 import 'package:renizo/features/auth/screens/login_screen.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
@@ -16,6 +19,7 @@ void loginCheck(BuildContext context) async {
     context.go(LoginScreen.routeName);
     return;
   }
+  unawaited(PushNotificationService.syncTokenToBackend());
   if (user.isProvider) {
     context.go(ProviderAppScreen.routeName);
     return;

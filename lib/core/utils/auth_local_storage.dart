@@ -12,6 +12,8 @@ class AuthLocalStorage {
   static const _keyUserAvatar = 'userAvatar';
   static const _keyHasOnboarded = 'hasOnboarded_';
   static const _keySelectedTown = 'selectedTown_';
+  static const _keyFcmToken = 'fcmToken';
+  static const _keySyncedFcmToken = 'syncedFcmToken';
 
   static Future<SharedPreferences> get _pref async =>
       SharedPreferences.getInstance();
@@ -42,6 +44,7 @@ class AuthLocalStorage {
     await p.remove(_keyUserRole);
     await p.remove(_keyUserPhone);
     await p.remove(_keyUserAvatar);
+    await clearFcmTokens();
   }
 
   static Future<String?> getToken() async {
@@ -94,11 +97,13 @@ class AuthLocalStorage {
     }
   }
 
+  /// True after this user has completed onboarding on this device (first login only).
   static Future<bool> hasOnboarded(String userId) async {
     final p = await _pref;
     return p.getBool(_keyHasOnboarded + userId) ?? false;
   }
 
+  /// Mark onboarding as done for this user on this device.
   static Future<void> setOnboarded(String userId) async {
     final p = await _pref;
     await p.setBool(_keyHasOnboarded + userId, true);
@@ -127,5 +132,31 @@ class AuthLocalStorage {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
+  }
+
+  static Future<void> saveFcmToken(String token) async {
+    final p = await _pref;
+    await p.setString(_keyFcmToken, token);
+  }
+
+  static Future<String?> getFcmToken() async {
+    final p = await _pref;
+    return p.getString(_keyFcmToken);
+  }
+
+  static Future<void> markFcmTokenSynced(String token) async {
+    final p = await _pref;
+    await p.setString(_keySyncedFcmToken, token);
+  }
+
+  static Future<String?> getSyncedFcmToken() async {
+    final p = await _pref;
+    return p.getString(_keySyncedFcmToken);
+  }
+
+  static Future<void> clearFcmTokens() async {
+    final p = await _pref;
+    await p.remove(_keyFcmToken);
+    await p.remove(_keySyncedFcmToken);
   }
 }

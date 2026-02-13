@@ -7,6 +7,7 @@ import 'package:renizo/features/auth/screens/register_screen.dart';
 import 'package:renizo/features/auth/screens/splash_screen.dart';
 import 'package:renizo/features/home/screens/customer_home_screen.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
+import 'package:renizo/core/models/user.dart';
 import 'package:renizo/features/onboarding/screens/onboarding_slides_screen.dart';
 import 'package:renizo/features/seller/screens/provider_app_screen.dart';
 import 'package:renizo/features/town/screens/town_selection_screen.dart';
@@ -58,11 +59,16 @@ class AppRouter {
         path: OnboardingSlidesScreen.routeName,
         name: OnboardingSlidesScreen.routeName,
         builder: (context, state) {
-          void onComplete() {
+          void onComplete(UserRole selectedRole) {
             () async {
               final user = await AuthLocalStorage.getCurrentUser();
               if (user != null) await AuthLocalStorage.setOnboarded(user.id);
-              if (context.mounted) context.go(TownSelectionScreen.routeName);
+              if (!context.mounted) return;
+              if (user != null && user.isProvider) {
+                context.go(ProviderAppScreen.routeName);
+              } else {
+                context.go(TownSelectionScreen.routeName);
+              }
             }();
           }
 

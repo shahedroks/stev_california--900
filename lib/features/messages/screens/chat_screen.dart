@@ -728,37 +728,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 1.5.h),
-                  Row(
-                    children: [
-                      if (partner?.isOnline ?? false) ...[
-                        Container(
-                          width: 8.w,
-                          height: 8.h,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF22C55E),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 6.w),
-                        Text(
-                          'Online',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF16A34A),
-                          ),
-                        ),
-                      ] else
-                        Text(
-                          'Offline',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: const Color(0xFF6B7280),
-                          ),
-                        ),
-                    ],
-                  ),
                 ],
               ),
             ),

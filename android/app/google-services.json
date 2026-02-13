@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "634639924375",
+    "project_id": "ranizo",
+    "storage_bucket": "ranizo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:634639924375:android:88bd7adfcb49ab3115bdd2",
+        "android_client_info": {
+          "package_name": "r2a.renizo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDB_5H1KPmNr2MR1s3_BuH6VZQ1TrjR9c4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

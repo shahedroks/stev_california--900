@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:renizo/core/services/auth_service.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
+import 'package:renizo/core/services/push_notification_service.dart';
 
 /// Signup state
 class SignupState {
@@ -8,17 +10,9 @@ class SignupState {
   final String? error;
   final bool isSuccess;
 
-  SignupState({
-    this.isLoading = false,
-    this.error,
-    this.isSuccess = false,
-  });
+  SignupState({this.isLoading = false, this.error, this.isSuccess = false});
 
-  SignupState copyWith({
-    bool? isLoading,
-    String? error,
-    bool? isSuccess,
-  }) {
+  SignupState copyWith({bool? isLoading, String? error, bool? isSuccess}) {
     return SignupState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -59,12 +53,14 @@ class SignupNotifier extends StateNotifier<SignupState> {
           role: response.data!.user.role,
           phone: response.data!.user.phone,
         );
+        // Push the device token to the backend (non-blocking for UI).
+        try {
+          await PushNotificationService.syncTokenToBackend();
+        } catch (e) {
+          debugPrint('FCM token sync failed after signup: $e');
+        }
 
-        state = state.copyWith(
-          isLoading: false,
-          isSuccess: true,
-          error: null,
-        );
+        state = state.copyWith(isLoading: false, isSuccess: true, error: null);
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -97,17 +93,9 @@ class LoginState {
   final String? error;
   final bool isSuccess;
 
-  LoginState({
-    this.isLoading = false,
-    this.error,
-    this.isSuccess = false,
-  });
+  LoginState({this.isLoading = false, this.error, this.isSuccess = false});
 
-  LoginState copyWith({
-    bool? isLoading,
-    String? error,
-    bool? isSuccess,
-  }) {
+  LoginState copyWith({bool? isLoading, String? error, bool? isSuccess}) {
     return LoginState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -120,10 +108,7 @@ class LoginState {
 class LoginNotifier extends StateNotifier<LoginState> {
   LoginNotifier() : super(LoginState());
 
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> login({required String email, required String password}) async {
     state = state.copyWith(isLoading: true, error: null, isSuccess: false);
 
     try {
@@ -141,12 +126,14 @@ class LoginNotifier extends StateNotifier<LoginState> {
           role: response.data!.user.role,
           phone: response.data!.user.phone,
         );
+        // Send (or refresh) the FCM token for this session.
+        try {
+          await PushNotificationService.syncTokenToBackend();
+        } catch (e) {
+          debugPrint('FCM token sync failed after login: $e');
+        }
 
-        state = state.copyWith(
-          isLoading: false,
-          isSuccess: true,
-          error: null,
-        );
+        state = state.copyWith(isLoading: false, isSuccess: true, error: null);
       } else {
         state = state.copyWith(
           isLoading: false,

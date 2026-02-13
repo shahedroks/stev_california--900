@@ -9,4 +9,7 @@ class AuthAPIController {
 
   /// POST /api/v1/auth/login – email + password
   static String get authLogin => "$api/auth/login";
+
+  /// PATCH /api/v1/users/me/fcm-token – save device token for push notifications.
+  static String get meFcmToken => "$_base_api/me/fcm-token";
 }

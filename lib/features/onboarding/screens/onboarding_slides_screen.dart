@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:renizo/core/constants/color_control/all_color.dart';
+import 'package:renizo/core/models/user.dart';
 
-/// Onboarding slides – converted from React OnboardingSlides.tsx.
-/// Uses confirmed colors from "just for confirm the color." theme.
+/// Onboarding slides – shown on first login on this device.
+/// Includes role selection (Customer / Provider) before completing.
 class OnboardingSlidesScreen extends StatefulWidget {
   const OnboardingSlidesScreen({super.key, this.onComplete});
 
   static const String routeName = '/onboarding';
 
-  final VoidCallback? onComplete;
+  /// Called when user completes onboarding. [selectedRole] is the role chosen on the last step.
+  final void Function(UserRole selectedRole)? onComplete;
 
   @override
   State<OnboardingSlidesScreen> createState() => _OnboardingSlidesScreenState();
@@ -18,6 +20,7 @@ class OnboardingSlidesScreen extends StatefulWidget {
 class _OnboardingSlidesScreenState extends State<OnboardingSlidesScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  UserRole _selectedRole = UserRole.customer;
 
   static const List<({String title, String description, IconData icon, List<Color> gradientColors})> _slides = [
     (
@@ -40,20 +43,125 @@ class _OnboardingSlidesScreenState extends State<OnboardingSlidesScreen> {
     ),
   ];
 
+  int get _totalPages => _slides.length + 1;
+  bool get _isRolePage => _currentPage == _slides.length;
+
   void _onNext() {
-    if (_currentPage < _slides.length - 1) {
+    if (_currentPage < _totalPages - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
       setState(() => _currentPage++);
     } else {
-      widget.onComplete?.call();
+      widget.onComplete?.call(_selectedRole);
     }
   }
 
   void _onSkip() {
-    widget.onComplete?.call();
+    widget.onComplete?.call(_selectedRole);
+  }
+
+  Widget _buildRoleSelectionPage() {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 48.h),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'How do you want to use the app?',
+            style: TextStyle(
+              fontSize: 24.sp,
+              fontWeight: FontWeight.w600,
+              color: AllColor.foreground,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 12.h),
+          Text(
+            'Choose your role to get started',
+            style: TextStyle(
+              fontSize: 16.sp,
+              color: AllColor.mutedForeground,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 32.h),
+          Row(
+            children: [
+              Expanded(
+                child: _roleCard(
+                  emoji: '👤',
+                  title: 'Find Services',
+                  sub: 'Customer',
+                  selected: _selectedRole == UserRole.customer,
+                  onTap: () => setState(() => _selectedRole = UserRole.customer),
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: _roleCard(
+                  emoji: '🔧',
+                  title: 'Offer Services',
+                  sub: 'Provider',
+                  selected: _selectedRole == UserRole.provider,
+                  onTap: () => setState(() => _selectedRole = UserRole.provider),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _roleCard({
+    required String emoji,
+    required String title,
+    required String sub,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16.r),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(vertical: 20.h, horizontal: 12.w),
+        decoration: BoxDecoration(
+          color: selected ? AllColor.primary.withOpacity(0.12) : AllColor.grey200.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+            color: selected ? AllColor.primary : AllColor.grey200,
+            width: selected ? 2.5 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: TextStyle(fontSize: 32.sp)),
+            SizedBox(height: 8.h),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+                color: selected ? AllColor.primary : AllColor.foreground,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 4.h),
+            Text(
+              sub,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: selected ? AllColor.primary.withOpacity(0.9) : AllColor.mutedForeground,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -73,8 +181,11 @@ class _OnboardingSlidesScreenState extends State<OnboardingSlidesScreen> {
               child: PageView.builder(
                 controller: _pageController,
                 onPageChanged: (i) => setState(() => _currentPage = i),
-                itemCount: _slides.length,
+                itemCount: _totalPages,
                 itemBuilder: (context, index) {
+                  if (index == _slides.length) {
+                    return _buildRoleSelectionPage();
+                  }
                   final slide = _slides[index];
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 48.h),
@@ -134,7 +245,7 @@ class _OnboardingSlidesScreenState extends State<OnboardingSlidesScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
-                      _slides.length,
+                      _totalPages,
                       (i) => AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         margin: EdgeInsets.symmetric(horizontal: 4.w),
@@ -150,7 +261,7 @@ class _OnboardingSlidesScreenState extends State<OnboardingSlidesScreen> {
                   SizedBox(height: 32.h),
                   Row(
                     children: [
-                      if (_currentPage < _slides.length - 1)
+                      if (!_isRolePage && _currentPage < _totalPages - 1)
                         Expanded(
                           child: TextButton(
                             onPressed: _onSkip,
@@ -165,15 +276,15 @@ class _OnboardingSlidesScreenState extends State<OnboardingSlidesScreen> {
                           ),
                         ),
                       Expanded(
-                        flex: _currentPage < _slides.length - 1 ? 1 : 2,
+                        flex: _isRolePage || _currentPage == _totalPages - 1 ? 2 : 1,
                         child: FilledButton.icon(
                           onPressed: _onNext,
                           icon: Icon(
-                            _currentPage < _slides.length - 1 ? Icons.chevron_right : Icons.check,
+                            _isRolePage ? Icons.check : Icons.chevron_right,
                             size: 20.sp,
                           ),
                           label: Text(
-                            _currentPage < _slides.length - 1 ? 'Next' : 'Get Started',
+                            _isRolePage ? 'Get Started' : 'Next',
                             style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
                           ),
                           style: FilledButton.styleFrom(
