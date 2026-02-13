@@ -23,7 +23,7 @@ class SellerBookingDetailsScreen extends ConsumerStatefulWidget {
   final String bookingId;
   final VoidCallback onBack;
   final BookingDetailsModel? initialBooking;
-  final void Function(String bookingId)? onOpenChat;
+  final void Function(String bookingId, {String? partnerName})? onOpenChat;
   final void Function(String bookingId, BookingStatus status)? onUpdateBooking;
 
   @override
@@ -55,7 +55,7 @@ class _SellerBookingDetailsScreenState extends ConsumerState<SellerBookingDetail
   }
 
   void _onOpenChat() {
-    widget.onOpenChat?.call(widget.bookingId);
+    widget.onOpenChat?.call(widget.bookingId, partnerName: null);
     if (widget.onOpenChat == null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Open chat')),
@@ -65,6 +65,7 @@ class _SellerBookingDetailsScreenState extends ConsumerState<SellerBookingDetail
 
   bool _isAccepting = false;
   bool _isDeclining = false;
+  bool _isCompleting = false;
 
   Future<void> _acceptBooking() async {
     if (_isAccepting) return;
@@ -109,6 +110,29 @@ class _SellerBookingDetailsScreenState extends ConsumerState<SellerBookingDetail
       );
     } finally {
       if (mounted) setState(() => _isDeclining = false);
+    }
+  }
+
+  Future<void> _completeBooking() async {
+    if (_isCompleting) return;
+    setState(() => _isCompleting = true);
+    try {
+      final api = ref.read(providerMyBookingsApiProvider);
+      await api.completeBooking(widget.bookingId);
+      if (!mounted) return;
+      ref.invalidate(providerBookingByIdProvider(widget.bookingId));
+      ref.invalidate(providerMyBookingsProvider);
+      _onUpdateStatus(BookingStatus.completed);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Booking completed'), backgroundColor: Color(0xFF059669)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isCompleting = false);
     }
   }
 
@@ -750,9 +774,9 @@ class _SellerBookingDetailsScreenState extends ConsumerState<SellerBookingDetail
     return Padding(
       padding: EdgeInsets.only(bottom: 24.h),
       child: _actionButton(
-        label: 'Mark as Completed',
+        label: _isCompleting ? 'Completing...' : 'Complete',
         icon: Icons.check_circle,
-        onTap: () => _onUpdateStatus(BookingStatus.completed),
+        onTap: _isCompleting ? () {} : _completeBooking,
       ),
     );
   }

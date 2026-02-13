@@ -10,6 +10,7 @@ import 'package:renizo/core/widgets/app_logo_button.dart';
 import 'package:renizo/features/auth/screens/login_screen.dart';
 import 'package:renizo/features/bookings/data/bookings_mock_data.dart';
 import 'package:renizo/features/seller/screens/seller_booking_details_screen.dart';
+import 'package:renizo/features/messages/data/chat_api_service.dart';
 import 'package:renizo/features/messages/screens/chat_screen.dart';
 import 'package:renizo/features/notifications/screens/notifications_screen.dart';
 import 'package:renizo/features/seller/data/bookings_riverpod.dart';
@@ -18,7 +19,7 @@ import 'package:renizo/features/seller/models/seller_bookings.dart';
 import 'package:renizo/features/seller/screens/seller_bookings_screen.dart';
 import 'package:renizo/features/seller/screens/seller_earnings_screen.dart';
 import 'package:renizo/features/seller/screens/seller_home_screen.dart';
-import 'package:renizo/features/seller/screens/seller_messages_screen.dart';
+import 'package:renizo/features/messages/screens/messages_screen.dart';
 import 'package:renizo/features/seller/models/seller_job_item.dart';
 import 'package:renizo/features/seller/screens/seller_profile_screen.dart';
 import 'package:renizo/features/seller/widgets/seller_bottom_nav_bar.dart';
@@ -79,6 +80,8 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
   String? _currentOverlay; // 'availability' | 'services' | 'pricing' | 'booking-details' | 'chat' | 'notifications'
   String? _selectedBookingId;
   String? _selectedChatId;
+  String? _selectedThreadId; // from POST /chat/threads response _id
+  final ChatApiService _chatApi = ChatApiService();
 
   bool _providerStatusActive = true; // 'active' | 'offline'
   List<SellerJobItem> _upcomingJobs = [];
@@ -181,6 +184,7 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
       _currentOverlay = null;
       _selectedBookingId = null;
       _selectedChatId = null;
+      _selectedThreadId = null;
     });
   }
 
@@ -191,8 +195,11 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
     });
   }
 
-  void _onOpenChat(String bookingId) {
+  Future<void> _onOpenChat(String bookingId, {String? partnerName}) async {
+    final threadId = await _chatApi.getOrCreateThread(bookingId);
+    if (!mounted) return;
     setState(() {
+      _selectedThreadId = threadId;
       _selectedChatId = bookingId;
       _currentOverlay = 'chat';
     });
@@ -210,6 +217,7 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
     setState(() {
       _currentOverlay = null;
       _selectedChatId = null;
+      _selectedThreadId = null;
     });
   }
 
@@ -412,7 +420,12 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
       case 2:
         return Container(
           color: const Color(0xFFF9FAFB),
-          child: SellerMessagesScreen(showAppBar: false, onSelectChat: (_, bookingId) => _onOpenChat(bookingId)),
+          child: MessagesScreen(
+            userRole: 'provider',
+            showAppBar: false,
+            sellerBookings: _allBookings,
+            onSelectChat: (_, bookingId) => _onOpenChat(bookingId ?? ''),
+          ),
         );
       case 3:
         return Container(
@@ -444,15 +457,17 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
         return SellerBookingDetailsScreen(
           bookingId: _selectedBookingId!,
           onBack: _onBackFromBookingDetails,
-          onOpenChat: (id) => _onOpenChat(id),
+          onOpenChat: (id, {String? partnerName}) => _onOpenChat(id, partnerName: partnerName),
           onUpdateBooking: _onUpdateBooking,
           initialBooking: null,
         );
       case 'chat':
         if (_selectedChatId == null) return const SizedBox.shrink();
         return ChatScreen(
+          threadId: _selectedThreadId,
           bookingId: _selectedChatId,
           userRole: 'provider',
+          providerName: null,
           onBack: _onBackFromChat,
         );
       case 'notifications':

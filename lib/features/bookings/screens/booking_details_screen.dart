@@ -27,7 +27,7 @@ class BookingDetailsScreen extends ConsumerStatefulWidget {
   final String bookingId;
   final VoidCallback onBack;
   final BookingDetailsModel? initialBooking;
-  final void Function(String bookingId)? onOpenChat;
+  final void Function(String bookingId, {String? partnerName})? onOpenChat;
   final void Function(String bookingId, BookingStatus status)? onUpdateBooking;
   final UserRole userRole;
 
@@ -62,7 +62,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   }
 
   void _onOpenChat() {
-    widget.onOpenChat?.call(widget.bookingId);
+    widget.onOpenChat?.call(widget.bookingId, partnerName: _booking?.providerName);
     if (widget.onOpenChat == null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Open chat')),

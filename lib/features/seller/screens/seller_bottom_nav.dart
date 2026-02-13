@@ -4,7 +4,7 @@ import 'package:renizo/core/constants/color_control/all_color.dart';
 import 'package:renizo/features/seller/screens/seller_bookings_screen.dart';
 import 'package:renizo/features/seller/screens/seller_earnings_screen.dart';
 import 'package:renizo/features/seller/screens/seller_home_screen.dart';
-import 'package:renizo/features/seller/screens/seller_messages_screen.dart';
+import 'package:renizo/features/messages/screens/messages_screen.dart';
 import 'package:renizo/features/seller/screens/seller_profile_screen.dart';
 
 final sellerSelectedIndexProvider = StateProvider<int>((ref) => 0);
@@ -15,9 +15,9 @@ class SellerBottomNav extends ConsumerWidget {
   static const String routeName = '/seller';
 
   static const List<Widget> _pages = [
-    SellerHomeScreen(),
+    SellerHomeScreen(providerStatusActive: true),
     SellerBookingsScreen(bookings: []),
-    SellerMessagesScreen(),
+    MessagesScreen(userRole: 'provider', sellerBookings: []),
     SellerEarningsScreen(),
     SellerProfileScreen(),
   ];

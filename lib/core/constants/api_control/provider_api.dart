@@ -7,6 +7,7 @@ class ProviderApi {
   static String bookingById(String bookingId) => "$api/bookings/provider/$bookingId";
   static String bookingAccept(String bookingId) => "$api/bookings/$bookingId/accept";
   static String bookingReject(String bookingId) => "$api/bookings/$bookingId/rejected";
+  static String bookingComplete(String bookingId) => "$api/bookings/$bookingId/complete";
   static String get catalogServices => "$api/catalog/services";
   static Uri catalogSubSectionsUri(String serviceId) {
     return Uri.parse("$api/catalog/subsections").replace(
