@@ -1,9 +1,16 @@
+import 'dart:convert';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:renizo/core/constants/api_control/provider_api.dart';
+import 'package:renizo/core/constants/api_control/user_api.dart';
 import 'package:renizo/core/models/provider_list_item.dart';
 import 'package:renizo/core/models/town.dart';
+import 'package:renizo/core/utils/auth_local_storage.dart';
 import 'package:renizo/features/home/widgets/customer_header.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
 import 'package:renizo/features/notifications/screens/notifications_screen.dart';
@@ -19,6 +26,13 @@ class SellerMatchingScreen extends ConsumerStatefulWidget {
     required this.selectedTownId,
     required this.bookingId,
     this.selectedTownName,
+    this.initialProviders,
+    this.searchSubsectionId,
+    this.searchAddonIds = const [],
+    this.searchScheduledAtISO,
+    this.searchAddress,
+    this.searchNotes,
+    this.estimatedAmount = 150.0,
     this.onChangeTown,
     this.onNotifications,
     this.onSelectProvider,
@@ -31,6 +45,14 @@ class SellerMatchingScreen extends ConsumerStatefulWidget {
   final String selectedTownId;
   final String bookingId;
   final String? selectedTownName;
+  /// When set, these are shown instead of loading mock/API in this screen.
+  final List<ProviderListItem>? initialProviders;
+  final String? searchSubsectionId;
+  final List<String> searchAddonIds;
+  final String? searchScheduledAtISO;
+  final String? searchAddress;
+  final String? searchNotes;
+  final double estimatedAmount;
   final VoidCallback? onChangeTown;
   final VoidCallback? onNotifications;
   final void Function(ProviderListItem provider)? onSelectProvider;
@@ -44,6 +66,12 @@ class SellerMatchingScreen extends ConsumerStatefulWidget {
 class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
   List<ProviderListItem> _providers = [];
   bool _loading = true;
+
+  /// Single selected provider for booking (only one can be selected).
+  ProviderListItem? _selectedProvider;
+
+  /// Creating booking in progress.
+  bool _creatingBooking = false;
 
   /// Local town name when user picks from header (same as CustomerHomeScreen).
   String? _selectedTownName;
@@ -124,17 +152,132 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
     });
   }
 
+  bool get _shouldLoadFromApi =>
+      widget.searchScheduledAtISO != null &&
+      widget.searchScheduledAtISO!.isNotEmpty;
+
+  ProviderListItem _mapProvider(Map<String, dynamic> map) {
+    final id = (map['_id'] ?? '').toString();
+    final userId = (map['userId'] ?? '').toString();
+    final displayName = (map['displayName'] ?? '').toString();
+    final logoUrl = (map['logoUrl'] ?? '').toString();
+    final rating =
+        (map['rating'] is num) ? (map['rating'] as num).toDouble() : 0.0;
+    final reviewsCount = (map['reviewsCount'] is int)
+        ? map['reviewsCount'] as int
+        : (map['reviewsCount'] is num)
+            ? (map['reviewsCount'] as num).toInt()
+            : 0;
+    return ProviderListItem(
+      id: id,
+      userId: userId.isNotEmpty ? userId : null,
+      displayName: displayName,
+      avatar: logoUrl,
+      rating: rating,
+      reviewCount: reviewsCount,
+      distance: '',
+      responseTime: '',
+      availableToday: true,
+      categoryNames: const [],
+    );
+  }
+
+  Future<void> _loadProvidersFromApi() async {
+    setState(() => _loading = true);
+    String? errorMessage;
+    List<ProviderListItem> providers = [];
+    try {
+      final token = await AuthLocalStorage.getToken();
+      final body = jsonEncode({
+        'townId': widget.selectedTownId,
+        'serviceId': widget.categoryId,
+        'subsectionId': [
+          if (widget.searchSubsectionId != null &&
+              widget.searchSubsectionId!.isNotEmpty)
+            widget.searchSubsectionId,
+        ],
+        'addonIds': widget.searchAddonIds,
+        'scheduledAtISO': widget.searchScheduledAtISO,
+      });
+      final res = await http
+          .post(
+            Uri.parse(ProviderApi.providerSearch),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null && token.toString().isNotEmpty)
+                'Authorization': 'Bearer $token',
+            },
+            body: body,
+          )
+          .timeout(const Duration(seconds: 15));
+      final decoded = jsonDecode(res.body) as Map<String, dynamic>?;
+      if (res.statusCode == 200 &&
+          decoded != null &&
+          decoded['status'] == 'success' &&
+          decoded['data'] is List) {
+        final list = decoded['data'] as List<dynamic>? ?? [];
+        providers = list
+            .whereType<Map<String, dynamic>>()
+            .map(_mapProvider)
+            .toList();
+      } else {
+        errorMessage = (decoded?['message'] ?? res.body).toString();
+        if (errorMessage.isEmpty) errorMessage = 'Failed to load providers';
+      }
+    } catch (e) {
+      errorMessage = e.toString();
+    }
+    if (!mounted) return;
+    if (errorMessage != null && errorMessage.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+      );
+    }
+    setState(() {
+      _providers = providers;
+      _loading = false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadProviders();
+    if (widget.initialProviders != null) {
+      _providers = widget.initialProviders!;
+      _loading = false;
+      return;
+    }
+    if (_shouldLoadFromApi) {
+      _loadProvidersFromApi();
+    } else {
+      _loadProviders();
+    }
   }
 
   @override
   void didUpdateWidget(covariant SellerMatchingScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.categoryId != widget.categoryId ||
-        oldWidget.selectedTownId != widget.selectedTownId) {
+    if (widget.initialProviders != null) {
+      if (_providers != widget.initialProviders) {
+        setState(() {
+          _providers = widget.initialProviders!;
+          _loading = false;
+        });
+      }
+      return;
+    }
+    final addonKeyChanged =
+        oldWidget.searchAddonIds.join(',') != widget.searchAddonIds.join(',');
+    if (_shouldLoadFromApi &&
+        (oldWidget.categoryId != widget.categoryId ||
+            oldWidget.selectedTownId != widget.selectedTownId ||
+            oldWidget.searchSubsectionId != widget.searchSubsectionId ||
+            oldWidget.searchScheduledAtISO != widget.searchScheduledAtISO ||
+            addonKeyChanged)) {
+      _loadProvidersFromApi();
+    } else if (!_shouldLoadFromApi &&
+        (oldWidget.categoryId != widget.categoryId ||
+            oldWidget.selectedTownId != widget.selectedTownId)) {
       _loadProviders();
     }
   }
@@ -174,6 +317,109 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
     );
   }
 
+  Future<void> _createBooking() async {
+    final provider = _selectedProvider;
+    if (provider == null) return;
+    if (widget.searchScheduledAtISO == null ||
+        widget.searchScheduledAtISO!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing schedule time'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    setState(() => _creatingBooking = true);
+    String? errorMessage;
+    try {
+      final token = await AuthLocalStorage.getToken();
+      final body = jsonEncode({
+        'townId': widget.selectedTownId,
+        'serviceId': widget.categoryId,
+        'subsectionId': widget.searchSubsectionId ?? widget.categoryId,
+        'addonIds': widget.searchAddonIds,
+        'providerId': provider.userId ?? provider.id,
+        'scheduledAt': widget.searchScheduledAtISO,
+        'address': {
+          'line1': widget.searchAddress ?? '',
+          'line2': '',
+          'city': '',
+          'postalCode': '',
+        },
+        'notes': widget.searchNotes ?? '',
+      });
+      final res = await http
+          .post(
+            Uri.parse(UserApi.createBooking),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null && token.toString().isNotEmpty)
+                'Authorization': 'Bearer $token',
+            },
+            body: body,
+          )
+          .timeout(const Duration(seconds: 15));
+      final decoded = jsonDecode(res.body) as Map<String, dynamic>?;
+      if (res.statusCode == 201 &&
+          decoded != null &&
+          (decoded['status'] ?? '') == 'success') {
+        if (!mounted) return;
+        setState(() {
+          _creatingBooking = false;
+          _selectedProvider = null;
+        });
+        await _showWaitingForProviderDialog();
+        return;
+      }
+      errorMessage = (decoded?['message'] ?? res.body).toString();
+      if (errorMessage.isEmpty) errorMessage = 'Failed to create booking';
+    } catch (e) {
+      errorMessage = e.toString();
+    }
+    if (!mounted) return;
+    setState(() => _creatingBooking = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(errorMessage),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _showWaitingForProviderDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+        title: Text(
+          'Booking submitted',
+          style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'Waiting for provider to accept. You will be notified once the provider confirms.',
+          style: TextStyle(fontSize: 15.sp, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              if (!mounted) return;
+              ref.read(selectedIndexProvider.notifier).state = 0;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                context.go(BottomNavBar.routeName);
+              });
+            },
+            child: Text('Okay', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -189,17 +435,57 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
           _buildTitleSection(),
           if (!_loading) _buildBanner(),
           Expanded(
-            child: _loading ? const SizedBox.shrink() : _buildProviderList(),
+            child: _loading ? _buildLoadingState() : _buildProviderList(),
           ),
         ],
       ),
-      bottomNavigationBar: CustomerBottomNavBar(
-        currentIndex: _bookingsTabIndex,
-        onTabTap: (index) {
-          if (index == _bookingsTabIndex) return;
-          Navigator.of(context).popUntil((route) => route.isFirst);
-          ref.read(selectedIndexProvider.notifier).state = index;
-        },
+      bottomNavigationBar: _selectedProvider != null
+          ? _buildBookProviderButton()
+          : CustomerBottomNavBar(
+              currentIndex: _bookingsTabIndex,
+              onTabTap: (index) {
+                if (index == _bookingsTabIndex) return;
+                Navigator.of(context).popUntil((route) => route.isFirst);
+                ref.read(selectedIndexProvider.notifier).state = index;
+              },
+            ),
+    );
+  }
+
+  Widget _buildBookProviderButton() {
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _creatingBooking ? null : _createBooking,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0B5BD3),
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(vertical: 14.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14.r),
+              ),
+            ),
+            child: _creatingBooking
+                ? SizedBox(
+                    width: 24.w,
+                    height: 24.h,
+                    child: const CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    'Book provider',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        ),
       ),
     );
   }
@@ -283,37 +569,56 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
     );
   }
 
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(color: Colors.white),
+          SizedBox(height: 12.h),
+          Text(
+            'Loading providers...',
+            style: TextStyle(
+              fontSize: 14.sp,
+              color: Colors.white.withOpacity(0.85),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProviderList() {
     if (_providers.isEmpty) {
       return Center(
         child: Padding(
-          padding: EdgeInsets.all(24.w),
+          padding: EdgeInsets.symmetric(horizontal: 24.w),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 64.w,
-                height: 64.h,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(16.r),
-                ),
-                child: Icon(Icons.access_time, size: 32.sp, color: Colors.grey),
+              Icon(
+                Icons.person_off_outlined,
+                size: 48.sp,
+                color: Colors.white.withOpacity(0.9),
               ),
               SizedBox(height: 16.h),
               Text(
-                'No providers available right now',
+                'Provider is not available right now',
                 style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 8.h),
               Text(
-                'Try selecting a different time or we can notify you when someone becomes available',
-                style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600),
+                'Try a different time or category',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  color: Colors.white.withOpacity(0.8),
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -327,20 +632,21 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
       itemCount: _providers.length,
       itemBuilder: (context, index) {
         final provider = _providers[index];
+        final isSelected = _selectedProvider?.id == provider.id;
         return Padding(
           padding: EdgeInsets.only(bottom: 12.h),
           child: _ProviderCard(
             provider: provider,
+            isSelected: isSelected,
             onTap: () {
-              widget.onSelectProvider?.call(provider);
-              if (widget.onSelectProvider == null && mounted) {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Selected ${provider.displayName}')),
-                );
-              } else if (mounted) {
-                Navigator.of(context).pop();
+              if (widget.onSelectProvider != null) {
+                widget.onSelectProvider?.call(provider);
+                return;
               }
+              setState(() {
+                _selectedProvider =
+                    (_selectedProvider?.id == provider.id) ? null : provider;
+              });
             },
           ),
         );
@@ -350,10 +656,15 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
 }
 
 class _ProviderCard extends StatefulWidget {
-  const _ProviderCard({required this.provider, required this.onTap});
+  const _ProviderCard({
+    required this.provider,
+    required this.onTap,
+    this.isSelected = false,
+  });
 
   final ProviderListItem provider;
   final VoidCallback onTap;
+  final bool isSelected;
 
   @override
   State<_ProviderCard> createState() => _ProviderCardState();
@@ -370,7 +681,9 @@ class _ProviderCardState extends State<_ProviderCard> {
         : '?';
 
     return Material(
-      color: Colors.white,
+      color: widget.isSelected
+          ? const Color(0xFFE5E7EB)
+          : Colors.white,
       borderRadius: BorderRadius.circular(16.r),
       elevation: 2,
       shadowColor: Colors.black.withOpacity(0.08),
@@ -381,7 +694,12 @@ class _ProviderCardState extends State<_ProviderCard> {
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: const Color(0xFFF3F4F6)),
+            border: Border.all(
+              color: widget.isSelected
+                  ? const Color(0xFF9CA3AF)
+                  : const Color(0xFFF3F4F6),
+              width: widget.isSelected ? 2.5 : 1,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

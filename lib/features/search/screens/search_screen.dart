@@ -7,22 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:renizo/core/models/provider_list_item.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
+import 'package:renizo/features/bookings/screens/task_submission_screen.dart';
 import 'package:renizo/features/search/logic/search_logic.dart';
 import 'package:renizo/features/search/models/search_api_models.dart';
 
 const Color _searchGradientStart = Color(0xFF408AF1);
 const Color _searchGradientEnd = Color(0xFF5ca3f5);
-
-/// The three search type filters.
-enum SearchType {
-  all('all', 'All'),
-  providers('providers', 'Providers'),
-  services('services', 'Services');
-
-  const SearchType(this.value, this.label);
-  final String value;
-  final String label;
-}
 
 /// Search tab – fully API-driven.
 /// Blue background, search input, type filter chips, filtered results by town, query, and type.
@@ -52,9 +42,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   /// Current search query (debounced) that drives the provider.
   String _debouncedQuery = '';
-
-  /// Currently selected search type filter.
-  SearchType _selectedType = SearchType.all;
 
   /// Resolved townId – loaded from storage if not passed via widget.
   String _resolvedTownId = '';
@@ -134,12 +121,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   SearchParams get _searchParams => SearchParams(
         query: _debouncedQuery,
         townId: _resolvedTownId,
-        type: _selectedType.value,
+        type: 'all',
       );
 
   void _onSelectProvider(SearchApiProvider p) {
     final item = ProviderListItem(
       id: p.id,
+      userId: p.userId,
       displayName: p.name,
       avatar: p.avatar,
       rating: p.rating,
@@ -155,6 +143,29 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         SnackBar(content: Text('Selected ${p.name}')),
       );
     }
+  }
+
+  void _onSelectService(SearchApiService service) {
+    if (!mounted) return;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => TaskSubmissionScreen(
+          selectedTownId: _resolvedTownId,
+          initialCategoryId: service.id,
+          onSubmit: (data) {
+            if (!context.mounted) return;
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Finding providers for ${data.date} at ${data.address}',
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -180,9 +191,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ),
                   SizedBox(height: 16.h),
                   _buildSearchField(),
-                  SizedBox(height: 12.h),
-                  _buildTypeFilter(),
-                  SizedBox(height: 12.h),
                 ],
               ),
             ),
@@ -190,47 +198,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  // ── Type filter chips ────────────────────────────────────────────────────────
-
-  Widget _buildTypeFilter() {
-    return Row(
-      children: SearchType.values.map((type) {
-        final isActive = _selectedType == type;
-        return Padding(
-          padding: EdgeInsets.only(right: 8.w),
-          child: GestureDetector(
-            onTap: () {
-              if (_selectedType != type) {
-                setState(() => _selectedType = type);
-              }
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-              decoration: BoxDecoration(
-                color: isActive ? Colors.white : Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20.r),
-                border: Border.all(
-                  color:
-                      isActive ? Colors.white : Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                type.label,
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                  color: isActive ? _bgBlue : Colors.white,
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 
@@ -253,103 +220,67 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     if (_debouncedQuery.isEmpty) return _buildEmptyPrompt();
 
+    // Services: from catalog API, filtered by query. Providers: from search API.
+    final asyncCatalog = ref.watch(catalogServicesProvider);
     final asyncSearch = ref.watch(searchControllerProvider(_searchParams));
 
-    return asyncSearch.when(
-      loading: () => Center(
-        child: SizedBox(
-          width: 36.w,
-          height: 36.h,
-          child: const CircularProgressIndicator(
-            color: Colors.white,
-            strokeWidth: 3,
-          ),
-        ),
-      ),
-      error: (e, _) => _buildErrorState(e),
-      data: (data) => _buildDataState(data),
-    );
-  }
+    const useCatalogForServices = true;
+    const useSearchForProviders = true;
 
-  // ── Data state: conditional rendering based on type ────────────────────────
-
-  Widget _buildDataState(SearchApiData data) {
-    switch (_selectedType) {
-      case SearchType.providers:
-        if (data.providers.isEmpty) {
-          return _buildEmptySection('No provider found.');
-        }
-        return _buildProvidersList(data.providers);
-
-      case SearchType.services:
-        if (data.services.isEmpty) {
-          return _buildEmptySection('No service found.');
-        }
-        return _buildServicesList(data.services);
-
-      case SearchType.all:
-        if (data.isEmpty) return _buildNoResults();
-        return _buildResults(data.services, data.providers);
+    if (useCatalogForServices && useSearchForProviders) {
+      // All: need both catalog (services) and search (providers)
+      return asyncCatalog.when(
+        loading: () => _buildLoading(),
+        error: (e, _) => _buildErrorState(e),
+        data: (allServices) {
+          final filteredServices = _filterServicesByQuery(allServices);
+          return asyncSearch.when(
+            loading: () => _buildLoading(),
+            error: (e, _) => _buildErrorState(e),
+            data: (searchData) => _buildDataState(
+              services: filteredServices,
+              providers: searchData.providers,
+            ),
+          );
+        },
+      );
     }
   }
 
-  // ── Providers-only list ────────────────────────────────────────────────────
+  List<SearchApiService> _filterServicesByQuery(List<SearchApiService> list) {
+    final q = _debouncedQuery.trim().toLowerCase();
+    if (q.isEmpty) return list;
+    return list
+        .where((s) =>
+            s.name.toLowerCase().contains(q) ||
+            s.description.toLowerCase().contains(q) ||
+            s.slug.toLowerCase().contains(q) ||
+            s.id.toLowerCase().contains(q))
+        .toList();
+  }
 
-  Widget _buildProvidersList(List<SearchApiProvider> providers) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Providers',
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 12.h),
-          ...List.generate(
-            providers.length,
-            (index) => _SearchProviderCard(
-              provider: providers[index],
-              index: index,
-              onTap: () => _onSelectProvider(providers[index]),
-            ),
-          ),
-        ],
+  Widget _buildLoading() {
+    return Center(
+      child: SizedBox(
+        width: 36.w,
+        height: 36.h,
+        child: const CircularProgressIndicator(
+          color: Colors.white,
+          strokeWidth: 3,
+        ),
       ),
     );
   }
 
-  // ── Services-only list ─────────────────────────────────────────────────────
-
-  Widget _buildServicesList(List<SearchApiService> services) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Services',
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 12.h),
-          ...List.generate(
-            services.length,
-            (index) => _ServiceTile(service: services[index], index: index),
-          ),
-        ],
-      ),
-    );
+  Widget _buildDataState({
+    required List<SearchApiService> services,
+    required List<SearchApiProvider> providers,
+  }) {
+    if (services.isEmpty && providers.isEmpty) return _buildNoResults();
+    return _buildResults(services, providers);
   }
 
-  // ── Combined results (type=all) ────────────────────────────────────────────
+  // ── Combined results ────────────────────────────────────────────────────────
 
   Widget _buildResults(
     List<SearchApiService> services,
@@ -373,15 +304,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             SizedBox(height: 12.h),
             ...List.generate(
               providers.length,
-              (index) => _SearchProviderCard(
-                provider: providers[index],
-                index: index,
-                onTap: () => _onSelectProvider(providers[index]),
+              (index) => Padding(
+                padding: EdgeInsets.only(bottom: 14.h),
+                child: _SearchProviderCard(
+                  provider: providers[index],
+                  index: index,
+                  onTap: () => _onSelectProvider(providers[index]),
+                ),
               ),
             ),
             SizedBox(height: 24.h),
           ] else ...[
-            _buildInlineEmpty('No provider found'),
+            // _buildInlineEmpty('No provider found'),
             SizedBox(height: 16.h),
           ],
 
@@ -398,8 +332,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             SizedBox(height: 12.h),
             ...List.generate(
               services.length,
-              (index) =>
-                  _ServiceTile(service: services[index], index: index),
+              (index) => Padding(
+                padding: EdgeInsets.only(bottom: 14.h),
+                child: _ServiceTile(
+                  service: services[index],
+                  index: index,
+                  onTap: () => _onSelectService(services[index]),
+                ),
+              ),
             ),
           ] else ...[
             _buildInlineEmpty('No service found.'),
@@ -505,32 +445,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  /// Centered empty-state for a specific section (providers or services).
-  Widget _buildEmptySection(String message) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(24.w),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off_rounded,
-                size: 44.sp, color: Colors.white.withOpacity(0.5)),
-            SizedBox(height: 12.h),
-            Text(
-              message,
-              style: TextStyle(
-                fontSize: 15.sp,
-                color: Colors.white.withOpacity(0.9),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Inline empty text inside the combined (type=all) results.
+  /// Inline empty text inside the combined results.
   Widget _buildInlineEmpty(String message) {
     return Container(
       width: double.infinity,
@@ -597,10 +512,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 // ─── Service / Category tile ─────────────────────────────────────────────────
 
 class _ServiceTile extends StatefulWidget {
-  const _ServiceTile({required this.service, required this.index});
+  const _ServiceTile({
+    required this.service,
+    required this.index,
+    this.onTap,
+  });
 
   final SearchApiService service;
   final int index;
+  final VoidCallback? onTap;
 
   @override
   State<_ServiceTile> createState() => _ServiceTileState();
@@ -639,63 +559,98 @@ class _ServiceTileState extends State<_ServiceTile>
 
   @override
   Widget build(BuildContext context) {
+    final s = widget.service;
+    final hasIconUrl = s.iconUrl.isNotEmpty;
+
     return FadeTransition(
       opacity: _opacity,
       child: SlideTransition(
         position: _slide,
-        child: Container(
-          width: double.infinity,
-          margin: EdgeInsets.only(bottom: 8.h),
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-          decoration: BoxDecoration(
-            color: Colors.white,
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          child: InkWell(
+            onTap: widget.onTap,
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: const Color(0xFFF3F4F6)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 36.w,
-                height: 36.h,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_searchGradientStart, _searchGradientEnd],
-                  ),
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Center(
-                  child: Icon(Icons.category_rounded,
-                      size: 18.sp, color: Colors.white),
-                ),
+            child: Container(
+              width: double.infinity,
+              margin: EdgeInsets.zero,
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(color: const Color(0xFFF3F4F6)),
               ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.service.name,
-                      style: TextStyle(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87),
-                    ),
-                    if (widget.service.description.isNotEmpty) ...[
-                      SizedBox(height: 2.h),
-                      Text(
-                        widget.service.description,
-                        style: TextStyle(
-                            fontSize: 12.sp, color: Colors.grey.shade600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10.r),
+                    child: Container(
+                      width: 36.w,
+                      height: 36.h,
+                      decoration: BoxDecoration(
+                        gradient: hasIconUrl
+                            ? null
+                            : const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  _searchGradientStart,
+                                  _searchGradientEnd,
+                                ],
+                              ),
                       ),
-                    ],
-                  ],
-                ),
+                      child: hasIconUrl
+                          ? CachedNetworkImage(
+                              imageUrl: s.iconUrl,
+                              fit: BoxFit.cover,
+                              width: 36.w,
+                              height: 36.h,
+                              placeholder: (_, __) => Center(
+                                child: Icon(Icons.category_rounded,
+                                    size: 18.sp, color: Colors.white),
+                              ),
+                              errorWidget: (_, __, ___) => Center(
+                                child: Icon(Icons.category_rounded,
+                                    size: 18.sp, color: Colors.white),
+                              ),
+                            )
+                          : Center(
+                              child: Icon(Icons.category_rounded,
+                                  size: 18.sp, color: Colors.white),
+                            ),
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.name,
+                          style: TextStyle(
+                              fontSize: 15.sp,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87),
+                        ),
+                        if (s.description.isNotEmpty) ...[
+                          SizedBox(height: 2.h),
+                          Text(
+                            s.description,
+                            style: TextStyle(
+                                fontSize: 12.sp, color: Colors.grey.shade600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (widget.onTap != null)
+                    Icon(Icons.chevron_right_rounded,
+                        size: 20.sp, color: Colors.grey.shade400),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -762,7 +717,7 @@ class _SearchProviderCardState extends State<_SearchProviderCard>
       child: SlideTransition(
         position: _slide,
         child: Padding(
-          padding: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.zero,
           child: Material(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16.r),

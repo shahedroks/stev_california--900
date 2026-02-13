@@ -67,8 +67,10 @@ String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
 BookingStatus _mapProviderBookingStatus(String raw) {
   final s = raw.trim().toLowerCase();
-  if (s == 'pending') return BookingStatus.pending;
-  if (s == 'confirmed') return BookingStatus.confirmed;
+  if (s == 'pending' || s == 'pending_payment') return BookingStatus.pending;
+  if (s == 'rejected') return BookingStatus.rejected;
+  if (s == 'accepted') return BookingStatus.accepted;
+  if (s == 'paid' || s == 'confirmed') return BookingStatus.confirmed;
   if (s == 'inprogress' || s == 'in_progress' || s == 'in-progress') {
     return BookingStatus.inProgress;
   }
@@ -1037,6 +1039,11 @@ class _SellerJobCard extends StatelessWidget {
       BookingStatus.pending: (
         _BookingsColors.yellow100,
         _BookingsColors.yellow700,
+      ),
+      BookingStatus.rejected: (_BookingsColors.red100, _BookingsColors.red700),
+      BookingStatus.accepted: (
+        _BookingsColors.green100,
+        _BookingsColors.green700,
       ),
       BookingStatus.confirmed: (
         _BookingsColors.green100,

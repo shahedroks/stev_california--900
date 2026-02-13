@@ -22,10 +22,13 @@ class BookingDisplayItem {
   final DateTime? scheduledDateTime;
 }
 
+/// API status values: pending_payment, rejected, accepted, paid, in_progress, completed, cancelled.
 enum BookingStatus {
-  pending,
-  confirmed,
-  inProgress,
+  pending,       // pending_payment – booking created, not paid yet
+  rejected,      // provider rejected
+  accepted,      // provider accepted, waiting payment
+  confirmed,     // paid – ready to start
+  inProgress,   // in_progress
   completed,
   cancelled,
 }
@@ -45,6 +48,12 @@ class BookingDetailsModel {
     required this.status,
     required this.paymentStatus,
     this.totalAmount,
+    this.renizoFeeAmount,
+    this.renizoFeePercent,
+    this.currency,
+    this.basePriceAmount,
+    this.addonsTotalAmount,
+    this.providerPayoutAmount,
   });
 
   final String id;
@@ -59,6 +68,16 @@ class BookingDetailsModel {
   final BookingStatus status;
   final PaymentStatus paymentStatus;
   final double? totalAmount;
+  final double? renizoFeeAmount;
+  final int? renizoFeePercent;
+  /// From API price.currency (e.g. "CAD").
+  final String? currency;
+  /// From API price.basePriceCents (in dollars).
+  final double? basePriceAmount;
+  /// From API price.addonsTotalCents (in dollars).
+  final double? addonsTotalAmount;
+  /// From API price.providerPayoutCents (in dollars).
+  final double? providerPayoutAmount;
 }
 
 enum PaymentStatus { unpaid, paidInApp, paidOutside }

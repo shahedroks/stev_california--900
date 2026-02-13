@@ -567,8 +567,10 @@ class _SellerBookingsScreenState extends ConsumerState<SellerBookingsScreen> {
 
   BookingStatus _mapStatus(String raw) {
     final s = raw.trim().toLowerCase();
-    if (s == 'pending') return BookingStatus.pending;
-    if (s == 'confirmed') return BookingStatus.confirmed;
+    if (s == 'pending' || s == 'pending_payment') return BookingStatus.pending;
+    if (s == 'rejected') return BookingStatus.rejected;
+    if (s == 'accepted') return BookingStatus.accepted;
+    if (s == 'paid' || s == 'confirmed') return BookingStatus.confirmed;
     if (s == 'inprogress' || s == 'in_progress' || s == 'in-progress') {
       return BookingStatus.inProgress;
     }
@@ -872,6 +874,11 @@ class _BookingCard extends StatelessWidget {
       BookingStatus.pending: (
         _BookingsColors.yellow100,
         _BookingsColors.yellow700,
+      ),
+      BookingStatus.rejected: (_BookingsColors.red100, _BookingsColors.red700),
+      BookingStatus.accepted: (
+        _BookingsColors.green100,
+        _BookingsColors.green700,
       ),
       BookingStatus.confirmed: (
         _BookingsColors.green100,

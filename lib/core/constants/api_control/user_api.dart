@@ -8,6 +8,8 @@ class UserApi {
 
   // ✅ Bookings (Customer)
   static final String bookingsMe = "$api/bookings/me";
+  static final String createBooking = "$api/bookings";
+  static String bookingById(String id) => "$api/bookings/$id";
 
   // ✅ Customer Home Screen
   static Uri customerHomeUri(String townId) {

@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:renizo/core/models/town.dart';
 import 'package:renizo/features/bookings/data/bookings_mock_data.dart';
 import 'package:renizo/features/home/widgets/customer_header.dart';
+import 'package:renizo/features/messages/data/chat_api_service.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
 import 'package:renizo/features/town/screens/town_selection_screen.dart';
 
@@ -47,6 +48,7 @@ class ChatPartner {
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
     super.key,
+    this.threadId,
     this.bookingId,
     this.userRole = 'customer',
     this.providerId,
@@ -59,7 +61,9 @@ class ChatScreen extends ConsumerStatefulWidget {
     this.onNotifications,
   });
 
-  /// When provided with userRole, loads booking and generates conversation.
+  /// From API GET /chat/threads – when set, load/send messages via API.
+  final String? threadId;
+  /// When provided with userRole, loads booking and generates conversation (mock when no threadId).
   final String? bookingId;
   final String userRole; // 'customer' | 'provider'
   /// When no bookingId, use provider info for header and initial messages.
@@ -81,6 +85,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ChatApiService _chatApi = ChatApiService();
 
   List<ChatMessage> _messages = [];
   ChatPartner? _chatPartner;
@@ -90,6 +95,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String _warningType = 'phone';
   String? _selectedTownName;
   String? _selectedTownId;
+  /// When opening with bookingId only, we resolve thread via API and store here for load/send.
+  String? _resolvedThreadId;
+
+  /// Display name in header: from messages_screen (providerName = other party name) or fallback.
+  String get _partnerDisplayName {
+    final n = widget.providerName;
+    if (n != null && n.trim().isNotEmpty) return n.trim();
+    return 'Chat Partner';
+  }
 
   static const Color _bgBlue = Color(0xFF2384F4);
   static const Color _gradientStart = Color(0xFF408AF1);
@@ -145,16 +159,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.read(selectedIndexProvider.notifier).state = index;
   }
 
+  String? get _effectiveThreadId => widget.threadId ?? _resolvedThreadId;
+
   @override
   void initState() {
     super.initState();
     _messageController.addListener(() => setState(() {}));
-    if (widget.bookingId != null && widget.userRole.isNotEmpty) {
-      _loadChatData();
-    } else if (widget.providerName != null) {
+    if (widget.threadId != null) {
+      _chatPartner = ChatPartner(
+        name: _partnerDisplayName,
+        avatar: widget.providerAvatar,
+        isOnline: true,
+      );
+      _loadMessagesFromApi();
+      _chatApi.markThreadRead(widget.threadId!);
+    } else if (widget.bookingId != null && widget.userRole.isNotEmpty) {
+      _chatPartner = ChatPartner(
+        name: _partnerDisplayName,
+        avatar: widget.providerAvatar,
+        isOnline: true,
+      );
+      _resolveThreadAndLoadMessages();
+    } else if (widget.providerName != null && widget.providerName!.trim().isNotEmpty) {
       setState(() {
         _chatPartner = ChatPartner(
-          name: widget.providerName!,
+          name: widget.providerName!.trim(),
           avatar: widget.providerAvatar,
           isOnline: true,
         );
@@ -164,6 +193,55 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } else {
       setState(() => _loading = false);
     }
+  }
+
+  /// When we have bookingId but no threadId: POST /chat/threads to get/create thread, then load messages.
+  Future<void> _resolveThreadAndLoadMessages() async {
+    final bookingId = widget.bookingId;
+    if (bookingId == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    setState(() => _loading = true);
+    final threadId = await _chatApi.getOrCreateThread(bookingId);
+    if (!mounted) return;
+    if (threadId != null) {
+      _resolvedThreadId = threadId;
+      await _chatApi.markThreadRead(threadId);
+      if (!mounted) return;
+      await _loadMessagesFromApi();
+    } else {
+      _loadChatData();
+    }
+  }
+
+  Future<void> _loadMessagesFromApi() async {
+    final threadId = _effectiveThreadId;
+    if (threadId == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    setState(() => _loading = true);
+    final list = await _chatApi.getMessages(threadId, limit: 30);
+    if (!mounted) return;
+    final uiMessages = list.map((m) {
+      final content = m.isBlocked
+          ? (m.blockedReason ?? '[Message blocked - Contact information not allowed]')
+          : m.message;
+      return ChatMessage(
+        id: m.id,
+        senderId: m.senderRole,
+        content: content,
+        timestamp: _formatTime(m.createdAt),
+        sent: true,
+        read: true,
+      );
+    }).toList();
+    setState(() {
+      _messages = uiMessages;
+      _loading = false;
+    });
+    _scrollToBottom();
   }
 
   @override
@@ -372,9 +450,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
+
+    final threadId = _effectiveThreadId;
+    if (threadId != null) {
+      final sent = await _chatApi.sendMessage(threadId, text);
+      if (!mounted) return;
+      if (sent == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send message')),
+        );
+        return;
+      }
+      if (sent.isBlocked) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(sent.blockedReason ?? 'Message blocked'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      final newMsg = ChatMessage(
+        id: sent.id,
+        senderId: sent.senderRole,
+        content: sent.message,
+        timestamp: _formatTime(sent.createdAt),
+        sent: true,
+        read: false,
+      );
+      setState(() {
+        _messages = [..._messages, newMsg];
+        _messageController.clear();
+        _showWarning = false;
+      });
+      _scrollToBottom();
+      return;
+    }
 
     final detection = _detectContactAttempt(text);
     if (detection.isViolation) {
@@ -407,7 +521,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       context,
     ).showSnackBar(const SnackBar(content: Text('Message sent')));
 
-    // Simulate typing and reply
     if (DateTime.now().millisecondsSinceEpoch % 3 != 0) {
       Future.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
@@ -489,75 +602,85 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  @override
+  bool get _isProvider => widget.userRole == 'provider';
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgBlue,
-      resizeToAvoidBottomInset: true,
-
-      // ✅ Move nav here (NOT inside body Column)
-      bottomNavigationBar: CustomerBottomNavBar(
-        currentIndex: 3,
-        onTabTap: _onNavTabTap,
-      ),
-
-      body: Column(
-        children: [
+    final bodyContent = Column(
+      children: [
+        if (!_isProvider)
           CustomerHeader(
             selectedTownName: widget.selectedTownName ?? _selectedTownName,
             onChangeTown: _onChangeTown,
             onNotifications: _onNotifications,
           ),
-
-          Expanded(
-            child: _loading
-                ? Center(
-                    child: SizedBox(
-                      width: 48.w,
-                      height: 48.h,
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
+        Expanded(
+          child: _loading
+              ? Center(
+                  child: SizedBox(
+                    width: 48.w,
+                    height: 48.h,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
-                  )
-                : Column(
-                    children: [
-                      _buildHeader(_chatPartner),
-
-                      Expanded(
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          padding: EdgeInsets.only(
-                            left: 16.w,
-                            right: 16.w,
-                            top: 12.h,
-                            bottom: 4.h,
-                          ),
-                          itemCount: _messages.length + (_isTyping ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (_isTyping && index == _messages.length) {
-                              return _buildTypingIndicator(_chatPartner);
-                            }
-                            return _buildMessageBubble(
-                              _messages[index],
-                              _chatPartner,
-                              index > 0 &&
-                                  _messages[index - 1].senderId ==
-                                      _messages[index].senderId,
-                            );
-                          },
-                        ),
-                      ),
-
-                      // ✅ Input bar stays in body
-                      _buildInputBar(),
-                    ],
                   ),
-          ),
-        ],
-      ),
+                )
+              : Column(
+                  children: [
+                    _buildHeader(_chatPartner),
+                    Expanded(
+                      child: _messages.isEmpty && !_isTyping
+                          ? Center(
+                              child: Text(
+                                'No messages yet.\nStart the conversation.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 15.sp,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              controller: _scrollController,
+                              padding: EdgeInsets.only(
+                                left: 16.w,
+                                right: 16.w,
+                                top: 12.h,
+                                bottom: 4.h,
+                              ),
+                              itemCount: _messages.length + (_isTyping ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (_isTyping && index == _messages.length) {
+                                  return _buildTypingIndicator(_chatPartner);
+                                }
+                                return _buildMessageBubble(
+                                  _messages[index],
+                                  _chatPartner,
+                                  index > 0 &&
+                                      _messages[index - 1].senderId ==
+                                          _messages[index].senderId,
+                                );
+                              },
+                            ),
+                    ),
+                    _buildInputBar(),
+                  ],
+                ),
+        ),
+      ],
+    );
+
+    return Scaffold(
+      backgroundColor: _bgBlue,
+      resizeToAvoidBottomInset: true,
+      bottomNavigationBar: _isProvider
+          ? null
+          : CustomerBottomNavBar(
+              currentIndex: 3,
+              onTabTap: _onNavTabTap,
+            ),
+      body: bodyContent,
     );
   }
 
@@ -586,7 +709,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             SizedBox(width: 12.w),
             _buildAvatar(
               partner?.avatar,
-              partner?.name ?? 'Chat Partner',
+              partner?.name ?? _partnerDisplayName,
               44.r,
             ),
             SizedBox(width: 12.w),
@@ -596,7 +719,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    partner?.name ?? 'Chat Partner',
+                    partner?.name ?? _partnerDisplayName,
                     style: TextStyle(
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
@@ -703,7 +826,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ChatPartner? partner,
     bool hideAvatar,
   ) {
-    final isUser = msg.senderId == 'user';
+    final isUser = msg.senderId == 'user' || msg.senderId == widget.userRole;
     return Padding(
       padding: EdgeInsets.only(bottom: 15.h),
       child: Row(
@@ -901,36 +1024,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          IconButton(
-            onPressed: _onAttachment,
-            icon: Icon(
-              Icons.attach_file,
-              size: 22.sp,
-              color: const Color(0xFF4B5563),
-            ),
-            style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFFF3F4F6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-            ),
-          ),
-          SizedBox(width: 8.w),
-          IconButton(
-            onPressed: _onImage,
-            icon: Icon(
-              Icons.image_outlined,
-              size: 22.sp,
-              color: const Color(0xFF4B5563),
-            ),
-            style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFFF3F4F6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-            ),
-          ),
-          SizedBox(width: 8.w),
+          // IconButton(
+          //   onPressed: _onAttachment,
+          //   icon: Icon(
+          //     Icons.attach_file,
+          //     size: 22.sp,
+          //     color: const Color(0xFF4B5563),
+          //   ),
+          //   style: IconButton.styleFrom(
+          //     backgroundColor: const Color(0xFFF3F4F6),
+          //     shape: RoundedRectangleBorder(
+          //       borderRadius: BorderRadius.circular(12.r),
+          //     ),
+          //   ),
+          // ),
+          // SizedBox(width: 8.w),
+          // IconButton(
+          //   onPressed: _onImage,
+          //   icon: Icon(
+          //     Icons.image_outlined,
+          //     size: 22.sp,
+          //     color: const Color(0xFF4B5563),
+          //   ),
+          //   style: IconButton.styleFrom(
+          //     backgroundColor: const Color(0xFFF3F4F6),
+          //     shape: RoundedRectangleBorder(
+          //       borderRadius: BorderRadius.circular(12.r),
+          //     ),
+          //   ),
+          // ),
+          // SizedBox(width: 8.w),
           Expanded(
             child: TextField(
               controller: _messageController,
@@ -967,36 +1090,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
           SizedBox(width: 8.w),
-          Material(
-            elevation: 4,
-            shadowColor: _gradientStart.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(16.r),
-            child: InkWell(
-              onTap: () {
-                if (_messageController.text.trim().isNotEmpty) _sendMessage();
-              },
+          Padding(
+            padding:  EdgeInsets.only(bottom: 12.h),
+            child: Material(
+              elevation: 4,
+              shadowColor: _gradientStart.withOpacity(0.3),
               borderRadius: BorderRadius.circular(16.r),
-              child: Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  gradient: _messageController.text.trim().isEmpty
-                      ? null
-                      : const LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [_gradientStart, _gradientEnd],
-                        ),
-                  color: _messageController.text.trim().isEmpty
-                      ? const Color(0xFFE5E7EB)
-                      : null,
-                  borderRadius: BorderRadius.circular(16.r),
-                ),
-                child: Icon(
-                  Icons.send_rounded,
-                  size: 22.sp,
-                  color: _messageController.text.trim().isEmpty
-                      ? const Color(0xFF9CA3AF)
-                      : Colors.white,
+              child: InkWell(
+                onTap: () {
+                  if (_messageController.text.trim().isNotEmpty) _sendMessage();
+                },
+                borderRadius: BorderRadius.circular(16.r),
+                child: Container(
+                  padding: EdgeInsets.all(8.w),
+                  decoration: BoxDecoration(
+                    gradient: _messageController.text.trim().isEmpty
+                        ? null
+                        : const LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [_gradientStart, _gradientEnd],
+                          ),
+                    color: _messageController.text.trim().isEmpty
+                        ? const Color(0xFFE5E7EB)
+                        : null,
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
+                  child: Icon(
+                    Icons.send_rounded,
+                    size: 22.sp,
+                    color: _messageController.text.trim().isEmpty
+                        ? const Color(0xFF9CA3AF)
+                        : Colors.white,
+                  ),
                 ),
               ),
             ),

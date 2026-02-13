@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:renizo/core/constants/color_control/all_color.dart';
 import 'package:renizo/core/models/town.dart';
+import 'package:renizo/core/widgets/app_logo_button.dart';
 import 'package:renizo/features/bookings/data/bookings_mock_data.dart';
 import 'package:renizo/features/home/widgets/customer_header.dart';
+import 'package:renizo/features/messages/data/chat_api_service.dart';
 import 'package:renizo/features/messages/screens/chat_screen.dart';
 import 'package:renizo/features/notifications/screens/notifications_screen.dart';
+import 'package:renizo/features/seller/models/seller_job_item.dart';
 import 'package:renizo/features/town/screens/town_selection_screen.dart';
 
-/// Chat list item – mirrors React MessagesScreen Chat interface.
+/// Chat list item – from API thread or mock/seller bookings.
 class ChatListItem {
   const ChatListItem({
     required this.id,
@@ -23,6 +26,7 @@ class ChatListItem {
     required this.timeAgo,
     required this.unreadCount,
     required this.bookingStatus,
+    this.threadId,
   });
 
   final String id;
@@ -36,14 +40,20 @@ class ChatListItem {
   final String timeAgo;
   final int unreadCount;
   final BookingStatus bookingStatus;
+  /// From API GET /chat/threads – used to open chat and call read API.
+  final String? threadId;
 }
 
-/// Messages screen – full conversion from React MessagesScreen.tsx.
-/// Same header as CustomerHomeScreen; blue background, search, chat list, loading, empty state.
+/// Messages screen – unified for customer and seller (provider).
+/// Customer: CustomerHeader, loadBookingsForCustomer, chat with providers.
+/// Seller: simple blue header "Chat with your customers", list from sellerBookings.
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({
     super.key,
     this.customerId = 'customer1',
+    this.userRole = 'customer',
+    this.showAppBar = true,
+    this.sellerBookings,
     this.onSelectChat,
     this.selectedTownId,
     this.selectedTownName,
@@ -52,7 +62,14 @@ class MessagesScreen extends StatefulWidget {
   });
 
   final String customerId;
-  final void Function(String providerId, String? bookingId)? onSelectChat;
+  /// 'customer' | 'provider'. When 'provider', use sellerBookings for list and "Chat with your customers" header.
+  final String userRole;
+  /// When false, no AppBar (e.g. embedded in provider app tab).
+  final bool showAppBar;
+  /// For userRole == 'provider': list of seller bookings to show as chat threads.
+  final List<SellerJobItem>? sellerBookings;
+  /// (otherPartyId, bookingId). For customer: providerId; for provider: call with (_, bookingId).
+  final void Function(String otherPartyId, String? bookingId)? onSelectChat;
   final String? selectedTownId;
   final String? selectedTownName;
   final VoidCallback? onChangeTown;
@@ -109,13 +126,164 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
+  bool get _isProvider => widget.userRole == 'provider';
+  final ChatApiService _chatApi = ChatApiService();
+
+  static BookingStatus _statusFromString(String? s) {
+    if (s == null || s.isEmpty) return BookingStatus.pending;
+    switch (s.toLowerCase()) {
+      case 'pending':
+      case 'pending_payment':
+        return BookingStatus.pending;
+      case 'rejected':
+        return BookingStatus.rejected;
+      case 'accepted':
+        return BookingStatus.accepted;
+      case 'confirmed':
+      case 'paid':
+        return BookingStatus.confirmed;
+      case 'in_progress':
+      case 'in progress':
+        return BookingStatus.inProgress;
+      case 'completed':
+        return BookingStatus.completed;
+      case 'cancelled':
+        return BookingStatus.cancelled;
+      default:
+        return BookingStatus.pending;
+    }
+  }
+
+  static String _timeAgo(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes.abs() < 60) return '${diff.inMinutes.abs()}m ago';
+    if (diff.inHours.abs() < 24) return '${diff.inHours.abs()}h ago';
+    if (diff.inHours.abs() < 48) return 'Yesterday';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[dt.month - 1]} ${dt.day}';
+  }
+
+  Future<void> _loadThreadsFromApi() async {
+    setState(() => _loading = true);
+    final threads = await _chatApi.getThreads();
+    if (!mounted) return;
+    final isProvider = _isProvider;
+    final items = <ChatListItem>[];
+    for (final t in threads) {
+      final other = isProvider ? t.customerId : t.providerId;
+      final unread = isProvider ? t.unreadByProvider : t.unreadByCustomer;
+      final lastAt = t.lastMessageAt ?? t.updatedAt;
+      final status = t.booking?.status;
+      items.add(ChatListItem(
+        id: t.id,
+        bookingId: t.bookingId,
+        providerId: other.id,
+        providerName: other.fullName,
+        providerAvatar: other.avatarUrl ?? '',
+        categoryName: t.booking?.status ?? 'Chat',
+        lastMessage: t.lastMessage ?? '',
+        lastMessageTime: lastAt,
+        timeAgo: _timeAgo(lastAt),
+        unreadCount: unread,
+        bookingStatus: _statusFromString(status),
+        threadId: t.id,
+      ));
+    }
+    items.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+    setState(() {
+      _chats = items;
+      _loading = false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _loadChats();
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text);
     });
+    _loadThreadsFromApi().then((_) {
+      if (!mounted) return;
+      if (_chats.isEmpty && _isProvider && widget.sellerBookings != null && widget.sellerBookings!.isNotEmpty) {
+        _buildChatsFromSellerBookings(widget.sellerBookings!);
+        setState(() => _loading = false);
+      }
+      // Customer: same API only (GET /chat/threads). No mock fallback – same data as API.
+    });
+  }
+
+  @override
+  void didUpdateWidget(MessagesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_isProvider && widget.sellerBookings != oldWidget.sellerBookings) {
+      if (widget.sellerBookings != null && widget.sellerBookings!.isNotEmpty) {
+        _buildChatsFromSellerBookings(widget.sellerBookings!);
+        setState(() {});
+      } else {
+        setState(() => _chats = []);
+      }
+    }
+  }
+
+  void _buildChatsFromSellerBookings(List<SellerJobItem> bookings) {
+    final now = DateTime.now();
+    const lastMessages = {
+      BookingStatus.pending: "New booking request",
+      BookingStatus.rejected: 'Message received',
+      BookingStatus.accepted: 'Please complete payment to confirm.',
+      BookingStatus.confirmed: "See you on the scheduled date!",
+      BookingStatus.inProgress: "I'm on my way.",
+      BookingStatus.completed: 'Thanks for choosing our service!',
+      BookingStatus.cancelled: 'Message received',
+    };
+    final chats = <ChatListItem>[];
+    for (final b in bookings) {
+      if (b.status == BookingStatus.cancelled) continue;
+      DateTime dt;
+      try {
+        final parts = b.scheduledDate.split('-');
+        final timeParts = b.scheduledTime.split(':');
+        dt = DateTime(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+          int.parse(parts[2]),
+          timeParts.length >= 2 ? int.parse(timeParts[0]) : 0,
+          timeParts.length >= 2 ? int.parse(timeParts[1]) : 0,
+        );
+      } catch (_) {
+        dt = now;
+      }
+      final diff = now.difference(dt);
+      String timeAgo;
+      if (diff.inMinutes.abs() < 60) {
+        timeAgo = '${diff.inMinutes.abs()}m ago';
+      } else if (diff.inHours.abs() < 24) {
+        timeAgo = '${diff.inHours.abs()}h ago';
+      } else if (diff.inHours.abs() < 48) {
+        timeAgo = 'Yesterday';
+      } else {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        timeAgo = '${months[dt.month - 1]} ${dt.day}';
+      }
+      chats.add(
+        ChatListItem(
+          id: 'chat-${b.id}',
+          bookingId: b.id,
+          providerId: '',
+          providerName: b.customerName,
+          providerAvatar: '',
+          categoryName: b.categoryName,
+          lastMessage: lastMessages[b.status] ?? 'Message received',
+          lastMessageTime: dt,
+          timeAgo: timeAgo,
+          unreadCount: b.status == BookingStatus.pending ? 1 : 0,
+          bookingStatus: b.status,
+        ),
+      );
+    }
+    chats.sort((a, b) => b.lastMessageTime.compareTo(a.lastMessageTime));
+    _chats = chats;
   }
 
   @override
@@ -135,6 +303,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final lastMessages = {
       BookingStatus.pending:
           "Thanks for booking! I'll confirm the details shortly.",
+      BookingStatus.rejected: 'Message received',
+      BookingStatus.accepted: 'Please complete payment to confirm.',
       BookingStatus.confirmed: "See you on the scheduled date!",
       BookingStatus.inProgress: "I'm on my way to your location.",
       BookingStatus.completed: 'Thanks for choosing our service!',
@@ -209,6 +379,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
     switch (status) {
       case BookingStatus.pending:
         return (const Color(0xFFFEF3C7), const Color(0xFFB45309));
+      case BookingStatus.rejected:
+        return (const Color(0xFFFEE2E2), const Color(0xFFB91C1C));
+      case BookingStatus.accepted:
+        return (const Color(0xFFDCFCE7), const Color(0xFF15803D));
       case BookingStatus.confirmed:
         return (const Color(0xFFDCFCE7), const Color(0xFF15803D));
       case BookingStatus.inProgress:
@@ -224,6 +398,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
     switch (status) {
       case BookingStatus.pending:
         return 'pending';
+      case BookingStatus.rejected:
+        return 'rejected';
+      case BookingStatus.accepted:
+        return 'accepted';
       case BookingStatus.confirmed:
         return 'confirmed';
       case BookingStatus.inProgress:
@@ -235,20 +413,22 @@ class _MessagesScreenState extends State<MessagesScreen> {
     }
   }
 
-  void _onSelectChat(ChatListItem chat) {
+  Future<void> _onSelectChat(ChatListItem chat) async {
+    if (chat.threadId != null) {
+      await _chatApi.markThreadRead(chat.threadId!);
+    }
     widget.onSelectChat?.call(chat.providerId, chat.bookingId);
     if (widget.onSelectChat != null) return;
     if (!mounted) return;
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => ChatScreen(
+          threadId: chat.threadId,
           bookingId: chat.bookingId,
-          userRole: 'customer',
-          providerId: chat.providerId,
+          userRole: _isProvider ? 'provider' : 'customer',
+          providerId: chat.providerId.isNotEmpty ? chat.providerId : null,
           providerName: chat.providerName,
-          providerAvatar: chat.providerAvatar.isNotEmpty
-              ? chat.providerAvatar
-              : null,
+          providerAvatar: chat.providerAvatar.isNotEmpty ? chat.providerAvatar : null,
           onBack: () => Navigator.of(context).pop(),
         ),
       ),
@@ -257,37 +437,36 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgBlue,
-      body: Column(
-        children: [
-          CustomerHeader(
-            selectedTownName: widget.selectedTownName ?? _selectedTownName,
-            onChangeTown: _onChangeTown,
-            onNotifications: _onNotifications,
-          ),
-          Expanded(
-            child: _loading
-                ? Center(
-                    child: SizedBox(
-                      width: 48.w,
-                      height: 48.h,
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
+    final content = Column(
+      children: [
+        _isProvider ? _buildProviderHeader() : CustomerHeader(
+          selectedTownName: widget.selectedTownName ?? _selectedTownName,
+          onChangeTown: _onChangeTown,
+          onNotifications: _onNotifications,
+        ),
+        Expanded(
+          child: _loading
+              ? Center(
+                  child: SizedBox(
+                    width: 48.w,
+                    height: 48.h,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
-                  )
-                : SafeArea(
-                    top: false,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                  ),
+                )
+              : SafeArea(
+                  top: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (!_isProvider) ...[
                               Text(
                                 'Messages',
                                 style: TextStyle(
@@ -296,7 +475,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                   color: Colors.white,
                                 ),
                               ),
-                              SizedBox(height: 4.h),
+                              SizedBox(height: 2.h),
                               Text(
                                 _chats.isEmpty
                                     ? 'No active conversations'
@@ -306,58 +485,72 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                   color: Colors.white.withOpacity(0.8),
                                 ),
                               ),
-                              if (_chats.isNotEmpty) ...[
-                                SizedBox(height: 16.h),
-                                TextField(
-                                  controller: _searchController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search messages...',
-                                    hintStyle: TextStyle(
-                                      fontSize: 14.sp,
-                                      color: const Color(0xFF9CA3AF),
-                                    ),
-                                    prefixIcon: Icon(
-                                      Icons.search,
-                                      size: 20.sp,
-                                      color: const Color(0xFF9CA3AF),
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12.r),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFF3F4F6),
-                                      ),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12.r),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFF3F4F6),
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12.r),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFF408AF1),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 12.w,
-                                      vertical: 12.h,
+                            ],
+                            if (_chats.isNotEmpty) ...[
+                              SizedBox(height: 2.h),
+                              TextField(
+                                controller: _searchController,
+                                decoration: InputDecoration(
+                                  hintText: 'Search messages...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 14.sp,
+                                    color: const Color(0xFF9CA3AF),
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.search,
+                                    size: 20.sp,
+                                    color: const Color(0xFF9CA3AF),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12.r),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFF3F4F6),
                                     ),
                                   ),
-                                  style: TextStyle(
-                                    fontSize: 14.sp,
-                                    color: Colors.black87,
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12.r),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFF3F4F6),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12.r),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF408AF1),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12.w,
+                                    vertical: 12.h,
                                   ),
                                 ),
-                              ],
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  color: Colors.black87,
+                                ),
+                              ),
                             ],
-                          ),
+                          ],
                         ),
-                        SizedBox(height: 16.h),
-                        Expanded(
+                      ),
+                      SizedBox(height: 16.h),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: () async {
+                            await _loadThreadsFromApi();
+                            if (_chats.isEmpty &&
+                                _isProvider &&
+                                widget.sellerBookings != null &&
+                                widget.sellerBookings!.isNotEmpty) {
+                              _buildChatsFromSellerBookings(widget.sellerBookings!);
+                              if (mounted) setState(() {});
+                            }
+                          },
+                          color: Colors.white,
+                          backgroundColor: _bgBlue,
                           child: _filteredChats.isNotEmpty
                               ? ListView.builder(
                                   padding: EdgeInsets.fromLTRB(
@@ -381,13 +574,70 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                     );
                                   },
                                 )
-                              : _buildEmptyState(),
+                              : ListView(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  children: [
+                                    SizedBox(height: 400.h),
+                                    _buildEmptyState(),
+                                  ],
+                                ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
+        ),
+      ],
+    );
+
+    if (_isProvider && widget.showAppBar) {
+      return Scaffold(
+        backgroundColor: _bgBlue,
+        appBar: AppBar(
+          title: Text(
+            'Messages',
+            style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600, color: Colors.white),
           ),
-        ],
+          backgroundColor: _bgBlue,
+          elevation: 0,
+          actions: [
+            Padding(
+              padding: EdgeInsets.only(right: 12.w),
+              child: AppLogoButton(size: 34),
+            ),
+          ],
+        ),
+        body: content,
+      );
+    }
+    return Scaffold(
+      backgroundColor: _bgBlue,
+      body: content,
+    );
+  }
+
+  Widget _buildProviderHeader() {
+    return Container(
+      width: double.infinity,
+      color: _bgBlue,
+      padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 24.h),
+      child: SafeArea(
+        top: false,
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Messages',
+              style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.w600, color: Colors.white),
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              'Chat with your customers',
+              style: TextStyle(fontSize: 14.sp, color: Colors.white.withOpacity(0.8)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -425,7 +675,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
             SizedBox(height: 8.h),
             Text(
               _searchQuery.isEmpty
-                  ? 'Book a service to start chatting with providers'
+                  ? (_isProvider
+                      ? 'Customer messages will appear here'
+                      : 'Book a service to start chatting with providers')
                   : 'Try searching with different keywords',
               style: TextStyle(
                 fontSize: 14.sp,

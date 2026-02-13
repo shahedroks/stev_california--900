@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:renizo/core/constants/api_control/provider_api.dart';
 import 'package:renizo/core/constants/api_control/user_api.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
 
@@ -70,11 +71,75 @@ class SearchRepository {
       throw Exception(e.message);
     }
   }
+
+  /// GET /catalog/services – returns list of services (same shape as search services).
+  Future<List<SearchApiService>> fetchCatalogServices() async {
+    try {
+      final headers = await AuthLocalStorage.authHeaders();
+      final response = await _client.get(
+        Uri.parse(ProviderApi.catalogServices),
+        headers: headers ?? {'Content-Type': 'application/json'},
+      );
+
+      final dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (_) {
+        throw const FormatException('Invalid JSON response from server');
+      }
+
+      final body =
+          decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+
+      if (response.statusCode >= 400) {
+        final msg =
+            body['message']?.toString() ?? 'HTTP ${response.statusCode}';
+        throw Exception(msg);
+      }
+
+      final status = (body['status'] ?? '').toString().toLowerCase();
+      if (status != 'success') {
+        final msg = body['message']?.toString() ?? 'Unexpected status: $status';
+        throw Exception(msg);
+      }
+
+      final data = body['data'];
+      if (data is! List) return [];
+
+      final list = data
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .where((e) => e['isActive'] != false)
+          .map(SearchApiService.fromJson)
+          .toList();
+      return list;
+    } on SocketException {
+      throw Exception('ইন্টারনেট সংযোগ নেই। আপনার নেটওয়ার্ক চেক করুন।');
+    } on FormatException catch (e) {
+      throw Exception(e.message);
+    }
+  }
 }
 
 final searchRepositoryProvider = Provider.autoDispose<SearchRepository>((ref) {
   return SearchRepository(ref.watch(searchHttpClientProvider));
 });
+
+// ─── Catalog services (for search screen – services from this API) ─────────────
+
+final catalogServicesProvider = AsyncNotifierProvider.autoDispose
+    <CatalogServicesController, List<SearchApiService>>(
+  CatalogServicesController.new,
+);
+
+class CatalogServicesController
+    extends AutoDisposeAsyncNotifier<List<SearchApiService>> {
+  @override
+  Future<List<SearchApiService>> build() async {
+    final repo = ref.watch(searchRepositoryProvider);
+    return repo.fetchCatalogServices();
+  }
+}
 
 // ─── Controller (AsyncNotifier family keyed by SearchParams) ─────────────────
 

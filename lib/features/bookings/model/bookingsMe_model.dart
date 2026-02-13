@@ -69,11 +69,26 @@ class BookingsMeItem {
 
   static String _s(dynamic v) => (v == null) ? '' : v.toString();
 
+  /// Parse ISO 8601 scheduledAt into date and time strings for display.
+  static (String date, String time) _parseScheduledAt(dynamic scheduledAt) {
+    final s = _s(scheduledAt);
+    if (s.isEmpty) return ('', '');
+    try {
+      final dt = DateTime.tryParse(s);
+      if (dt == null) return ('', '');
+      final date = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+      final time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      return (date, time);
+    } catch (_) {
+      return ('', '');
+    }
+  }
+
   factory BookingsMeItem.fromJson(Map<String, dynamic> json) {
     // id fallback
     final id = _s(json['_id']).isNotEmpty ? _s(json['_id']) : _s(json['id']);
 
-    // provider object fallback
+    // provider: API has name, logoUrl (not avatar)
     final provider = json['provider'];
     final providerName = _s(json['providerName']).isNotEmpty
         ? _s(json['providerName'])
@@ -81,22 +96,43 @@ class BookingsMeItem {
 
     final providerAvatar = _s(json['providerAvatar']).isNotEmpty
         ? _s(json['providerAvatar'])
-        : (provider is Map ? _s(provider['avatar']) : '');
+        : (provider is Map ? _s(provider['logoUrl']) : '');
 
-    // category fallback
+    // category: API has "service" (name), not "category"
     final category = json['category'];
+    final service = json['service'];
     final categoryName = _s(json['categoryName']).isNotEmpty
         ? _s(json['categoryName'])
-        : (category is Map ? _s(category['name']) : '');
+        : (category is Map ? _s(category['name']) : (service is Map ? _s(service['name']) : ''));
+
+    // scheduledAt (ISO) preferred; fallback to scheduledDate/scheduledTime
+    final scheduledDateJson = json['scheduledDate'];
+    final scheduledTimeJson = json['scheduledTime'];
+    final scheduledAt = json['scheduledAt'];
+    String scheduledDate;
+    String scheduledTime;
+    if (_s(scheduledDateJson).isNotEmpty && _s(scheduledTimeJson).isNotEmpty) {
+      scheduledDate = _s(scheduledDateJson);
+      scheduledTime = _s(scheduledTimeJson);
+    } else {
+      final parsed = _parseScheduledAt(scheduledAt);
+      scheduledDate = parsed.$1;
+      scheduledTime = parsed.$2;
+    }
+
+    // status: use statusDisplay for display if present (e.g. "Pending"), else status (e.g. "pending_payment")
+    final statusRaw = _s(json['status']);
+    final statusDisplay = _s(json['statusDisplay']);
+    final status = statusDisplay.isNotEmpty ? statusDisplay : statusRaw;
 
     return BookingsMeItem(
       id: id,
       providerName: providerName,
       providerAvatar: providerAvatar,
       categoryName: categoryName,
-      status: _s(json['status']),
-      scheduledDate: _s(json['scheduledDate']),
-      scheduledTime: _s(json['scheduledTime']),
+      status: status,
+      scheduledDate: scheduledDate,
+      scheduledTime: scheduledTime,
     );
   }
 }
