@@ -1,4 +1,4 @@
-package com.example.market_jango
+package r2a.renizo
 
 import io.flutter.embedding.android.FlutterActivity
 

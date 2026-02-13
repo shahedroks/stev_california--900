@@ -5,6 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:renizo/features/bookings/data/bookings_mock_data.dart';
 import 'package:renizo/features/bookings/screens/booking_details_screen.dart';
 import 'package:renizo/features/bookings/screens/task_submission_screen.dart';
+import 'package:renizo/features/messages/data/chat_api_service.dart';
+import 'package:renizo/features/messages/screens/chat_screen.dart';
 
 import '../bookingsCard.dart';
 import '../logic/bookingsMe_logic.dart';
@@ -68,6 +70,32 @@ class BookingsScreen extends ConsumerWidget {
     ref.invalidate(bookingsMeProvider(townId));
   }
 
+  Future<void> _openChatFromBooking(
+    BuildContext context,
+    String bookingId,
+    String? partnerName,
+  ) async {
+    final threadId = await ChatApiService().getOrCreateThread(bookingId);
+    if (!context.mounted) return;
+    if (threadId != null) {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatScreen(
+            threadId: threadId,
+            bookingId: bookingId,
+            userRole: 'customer',
+            providerName: partnerName,
+            onBack: () => Navigator.of(context).pop(),
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open chat. Try again.')),
+      );
+    }
+  }
+
   Future<void> _openBookingDetails(
     BuildContext context,
     WidgetRef ref,
@@ -78,11 +106,9 @@ class BookingsScreen extends ConsumerWidget {
         builder: (_) => BookingDetailsScreen(
           bookingId: bookingId,
           onBack: () => Navigator.of(context).pop(),
-          onOpenChat: (id) {
+          onOpenChat: (id, {String? partnerName}) {
             if (!context.mounted) return;
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Open chat for $id')));
+            _openChatFromBooking(context, id, partnerName);
           },
           onUpdateBooking: (id, status) {
             if (!context.mounted) return;
@@ -173,39 +199,54 @@ class BookingsScreen extends ConsumerWidget {
                   ),
                 ),
                 Expanded(
-                  child: bookings.isEmpty
-                      ? _EmptyState(
-                          onCreateNew: () {
-                            if (onCreateNew != null) {
-                              onCreateNew!.call();
-                              return;
-                            }
-                            _defaultCreateFlow(context, ref);
-                          },
-                        )
-                      : ListView.builder(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16.w,
-                            vertical: 16.h,
-                          ),
-                          itemCount: bookings.length,
-                          itemBuilder: (context, i) {
-                            final b = bookings[i];
-                            return Padding(
-                              padding: EdgeInsets.only(bottom: 12.h),
-                              child: BookingCard(
-                                booking: b,
-                                onSelect: () {
-                                  if (onSelectBooking != null) {
-                                    onSelectBooking!.call(b.id);
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      ref.invalidate(bookingsMeProvider(townId));
+                      await ref.read(bookingsMeProvider(townId).future);
+                    },
+                    color: Colors.blue,
+                    child: bookings.isEmpty
+                        ? SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: MediaQuery.sizeOf(context).height - 200,
+                              ),
+                              child: _EmptyState(
+                                onCreateNew: () {
+                                  if (onCreateNew != null) {
+                                    onCreateNew!.call();
                                     return;
                                   }
-                                  _openBookingDetails(context, ref, b.id);
+                                  _defaultCreateFlow(context, ref);
                                 },
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16.w,
+                              vertical: 16.h,
+                            ),
+                            itemCount: bookings.length,
+                            itemBuilder: (context, i) {
+                              final b = bookings[i];
+                              return Padding(
+                                padding: EdgeInsets.only(bottom: 12.h),
+                                child: BookingCard(
+                                  booking: b,
+                                  onSelect: () {
+                                    if (onSelectBooking != null) {
+                                      onSelectBooking!.call(b.id);
+                                      return;
+                                    }
+                                    _openBookingDetails(context, ref, b.id);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
                 ),
               ],
             ),
