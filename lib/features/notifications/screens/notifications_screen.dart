@@ -5,28 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:renizo/core/models/town.dart';
 import 'package:renizo/features/home/widgets/customer_header.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
+import 'package:renizo/features/notifications/data/notifications_api_models.dart';
+import 'package:renizo/features/notifications/data/notifications_api_service.dart';
 import 'package:renizo/features/town/screens/town_selection_screen.dart';
-
-/// Notification item type – mirrors NotificationsScreen.tsx.
-enum NotificationItemType { booking, message, promotion, reminder }
-
-class NotificationItem {
-  const NotificationItem({
-    required this.id,
-    required this.type,
-    required this.title,
-    required this.message,
-    required this.timestamp,
-    required this.unread,
-  });
-
-  final String id;
-  final NotificationItemType type;
-  final String title;
-  final String message;
-  final String timestamp;
-  final bool unread;
-}
 
 /// Notifications – full conversion from React NotificationsScreen.tsx.
 /// Blue bg, CustomerHeader, bottom nav, unread badge, list of notification cards, empty state.
@@ -35,6 +16,7 @@ class NotificationsScreen extends ConsumerStatefulWidget {
     super.key,
     this.onBack,
     this.onClose,
+    this.onNavTabTap,
     this.selectedTownName,
     this.selectedTownId,
     this.onChangeTown,
@@ -43,48 +25,14 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 
   final VoidCallback? onBack;
   final VoidCallback? onClose;
+  /// When set (e.g. provider overlay), bottom nav taps call this instead of pop/go – so Home goes to provider home, not customer/login.
+  final void Function(int index)? onNavTabTap;
   final String? selectedTownName;
   final String? selectedTownId;
   final VoidCallback? onChangeTown;
   final VoidCallback? onNotifications;
 
   static const String routeName = '/notifications';
-
-  static const List<NotificationItem> _notifications = [
-    NotificationItem(
-      id: '1',
-      type: NotificationItemType.booking,
-      title: 'Booking Confirmed',
-      message:
-          "Mike's Plumbing confirmed your appointment for tomorrow at 2:00 PM",
-      timestamp: '5 min ago',
-      unread: true,
-    ),
-    NotificationItem(
-      id: '2',
-      type: NotificationItemType.message,
-      title: 'New Message',
-      message: 'Elite Electric Co. sent you a message',
-      timestamp: '1 hour ago',
-      unread: true,
-    ),
-    NotificationItem(
-      id: '4',
-      type: NotificationItemType.promotion,
-      title: 'Special Offer',
-      message: 'Get 15% off your next HVAC service this week',
-      timestamp: '3 hours ago',
-      unread: false,
-    ),
-    NotificationItem(
-      id: '5',
-      type: NotificationItemType.reminder,
-      title: 'Upcoming Appointment',
-      message: 'Your appointment with Sparkle Clean is tomorrow',
-      timestamp: '1 day ago',
-      unread: false,
-    ),
-  ];
 
   @override
   ConsumerState<NotificationsScreen> createState() =>
@@ -95,6 +43,17 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   String? _selectedTownName;
 
   static const Color _bgBlue = Color(0xFF2384F4);
+  final NotificationsApiService _api = NotificationsApiService();
+  List<NotificationItem> _notifications = [];
+  bool _isLoading = true;
+  bool _isMarkingAllRead = false;
+  final Set<String> _markingReadIds = <String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
 
   Future<void> _onChangeTown() async {
     widget.onChangeTown?.call();
@@ -121,7 +80,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   void _onNavTabTap(int index) {
-    if (index == 4) return;
+    if (index == 4) return; // already on notifications
+    if (widget.onNavTabTap != null) {
+      widget.onNavTabTap!(index);
+      return;
+    }
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     } else {
@@ -141,12 +104,74 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
+  Future<void> _loadNotifications() async {
+    setState(() {
+      _isLoading = true;
+    });
+    final items = await _api.getNotifications();
+    if (!mounted) return;
+    setState(() {
+      _notifications = items;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _markRead(NotificationItem item) async {
+    if (!item.unread || item.id.isEmpty) return;
+    if (_markingReadIds.contains(item.id)) return;
+    setState(() {
+      _markingReadIds.add(item.id);
+    });
+    final ok = await _api.markRead(item.id);
+    if (!mounted) return;
+    if (ok) {
+      setState(() {
+        _notifications = _notifications
+            .map(
+              (n) => n.id == item.id ? n.copyWith(unread: false) : n,
+            )
+            .toList();
+      });
+    } else {
+      _showSnack('Failed to mark as read');
+    }
+    setState(() {
+      _markingReadIds.remove(item.id);
+    });
+  }
+
+  Future<void> _markAllRead() async {
+    if (_isMarkingAllRead) return;
+    setState(() {
+      _isMarkingAllRead = true;
+    });
+    final ok = await _api.markAllRead();
+    if (!mounted) return;
+    if (ok) {
+      setState(() {
+        _notifications = _notifications
+            .map((n) => n.unread ? n.copyWith(unread: false) : n)
+            .toList();
+      });
+    } else {
+      _showSnack('Failed to mark all as read');
+    }
+    setState(() {
+      _isMarkingAllRead = false;
+    });
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final unreadCount = NotificationsScreen._notifications
-        .where((n) => n.unread)
-        .length;
-    final notifications = NotificationsScreen._notifications;
+    final unreadCount = _notifications.where((n) => n.unread).length;
+    final notifications = _notifications;
 
     return Scaffold(
       backgroundColor: _bgBlue,
@@ -177,21 +202,38 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           ),
           _buildTitle(unreadCount),
           Expanded(
-            child: notifications.isEmpty
-                ? _buildEmptyState(context)
-                : ListView.builder(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 16.w,
-                      vertical: 16.h,
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Colors.white),
+                      strokeWidth: 2.5,
                     ),
-                    itemCount: notifications.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: 12.h),
-                        child: _NotificationCard(item: notifications[index]),
-                      );
-                    },
-                  ),
+                  )
+                : notifications.isEmpty
+                    ? _buildEmptyState(context)
+                    : ListView.builder(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16.w,
+                          vertical: 16.h,
+                        ),
+                        itemCount: notifications.length,
+                        itemBuilder: (context, index) {
+                          final item = notifications[index];
+                          final isMarkingRead =
+                              _markingReadIds.contains(item.id);
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: 12.h),
+                            child: _NotificationCard(
+                              item: item,
+                              isMarkingRead: isMarkingRead,
+                              onIconTap: item.unread
+                                  ? () => _markRead(item)
+                                  : null,
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
@@ -240,6 +282,33 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                       color: Colors.white,
                     ),
                   ),
+                ),
+              ],
+              if (unreadCount > 0) ...[
+                const Spacer(),
+                TextButton(
+                  onPressed: _isMarkingAllRead ? null : _markAllRead,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 8.w),
+                  ),
+                  child: _isMarkingAllRead
+                      ? SizedBox(
+                          width: 16.w,
+                          height: 16.w,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          'Mark all read',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                 ),
               ],
             ],
@@ -304,15 +373,46 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item});
+  const _NotificationCard({
+    required this.item,
+    this.onIconTap,
+    this.isMarkingRead = false,
+  });
 
   final NotificationItem item;
+  final VoidCallback? onIconTap;
+  final bool isMarkingRead;
 
   @override
   Widget build(BuildContext context) {
     final (IconData icon, Color iconColor, Color bgColor) = _styleForType(
       item.type,
     );
+    final iconWidget = isMarkingRead
+        ? SizedBox(
+            width: 24.sp,
+            height: 24.sp,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+            ),
+          )
+        : Icon(icon, size: 24.sp, color: iconColor);
+    final leading = Container(
+      width: 48.w,
+      height: 48.w,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: iconWidget,
+    );
+    final leadingTap = onIconTap == null
+        ? leading
+        : GestureDetector(
+            onTap: onIconTap,
+            child: leading,
+          );
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -337,15 +437,7 @@ class _NotificationCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48.w,
-            height: 48.w,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Icon(icon, size: 24.sp, color: iconColor),
-          ),
+          leadingTap,
           SizedBox(width: 12.w),
           Expanded(
             child: Column(
@@ -428,6 +520,12 @@ class _NotificationCard extends StatelessWidget {
           Icons.schedule,
           const Color(0xFFCA8A04),
           const Color(0xFFFEFCE8),
+        );
+      case NotificationItemType.other:
+        return (
+          Icons.notifications_outlined,
+          const Color(0xFF475569),
+          const Color(0xFFF1F5F9),
         );
     }
   }

@@ -1,26 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-/// Payment screen – shows payment summary and checkout.
+/// Price data from booking details API (price object).
+class PaymentPriceData {
+  const PaymentPriceData({
+    required this.currency,
+    required this.basePriceCents,
+    required this.addonsTotalCents,
+    required this.totalCents,
+    required this.renizoFeePercent,
+    required this.renizoFeeCents,
+    required this.providerPayoutCents,
+  });
+
+  final String currency;
+  final int basePriceCents;
+  final int addonsTotalCents;
+  final int totalCents;
+  final int renizoFeePercent;
+  final int renizoFeeCents;
+  final int providerPayoutCents;
+
+  double get basePriceAmount => basePriceCents / 100.0;
+  double get addonsTotalAmount => addonsTotalCents / 100.0;
+  double get totalAmount => totalCents / 100.0;
+  double get renizoFeeAmount => renizoFeeCents / 100.0;
+  double get providerPayoutAmount => providerPayoutCents / 100.0;
+}
+
+/// Payment screen – shows payment summary and checkout using API price data.
 class PaymentScreen extends StatelessWidget {
   const PaymentScreen({
     super.key,
     required this.providerName,
-    required this.totalAmount,
+    required this.price,
   });
 
   static const String routeName = '/payment';
 
   final String providerName;
-  final double totalAmount;
+  final PaymentPriceData price;
 
   static const Color _bgBlue = Color(0xFF2384F4);
   static const Color _cardBlueStart = Color(0xFF4F8EF7);
   static const Color _cardBlueEnd = Color(0xFF5A9BF8);
 
+  /// API থেকে যে amount আসে সেটাই দেখায়; দশমিক জোর করা হয় না (২/৩ যত আছে তত).
+  String _formatAmount(double amount) {
+    final String raw = amount.toStringAsFixed(6).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+    final String value = raw.contains('.') ? raw : amount.toInt().toString();
+    final code = price.currency;
+    if (code == 'CAD' || code == 'USD') return '\$$value';
+    return '$value $code';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final fee = totalAmount * 0.10;
     return Scaffold(
       backgroundColor: _bgBlue,
       body: SafeArea(
@@ -83,7 +118,7 @@ class PaymentScreen extends StatelessWidget {
                   children: [
                     _buildPaymentToCard(),
                     SizedBox(height: 16.h),
-                    _buildPaymentBreakdownCard(fee),
+                    _buildPaymentBreakdownCard(),
                   ],
                 ),
               ),
@@ -103,7 +138,7 @@ class PaymentScreen extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'Pay \$${totalAmount.toStringAsFixed(2)}',
+                    'Pay ${_formatAmount(price.totalAmount)}',
                     style: TextStyle(
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
@@ -153,7 +188,7 @@ class PaymentScreen extends StatelessWidget {
           Container(height: 1, color: Colors.white.withOpacity(0.25)),
           SizedBox(height: 12.h),
           Text(
-            'Total Amount',
+            'Total Amount (${price.currency})',
             style: TextStyle(
               fontSize: 12.sp,
               color: Colors.white.withOpacity(0.75),
@@ -161,7 +196,7 @@ class PaymentScreen extends StatelessWidget {
           ),
           SizedBox(height: 4.h),
           Text(
-            '\$${totalAmount.toStringAsFixed(2)}',
+            _formatAmount(price.totalAmount),
             style: TextStyle(
               fontSize: 24.sp,
               fontWeight: FontWeight.w700,
@@ -173,7 +208,7 @@ class PaymentScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPaymentBreakdownCard(double fee) {
+  Widget _buildPaymentBreakdownCard() {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.w),
@@ -196,7 +231,7 @@ class PaymentScreen extends StatelessWidget {
               Icon(Icons.attach_money, size: 20.sp, color: const Color(0xFF0B5BD3)),
               SizedBox(width: 8.w),
               Text(
-                'Payment Breakdown',
+                'Payment Breakdown (${price.currency})',
                 style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
               ),
             ],
@@ -204,7 +239,15 @@ class PaymentScreen extends StatelessWidget {
           SizedBox(height: 12.h),
           Divider(color: Colors.grey.shade200, height: 1),
           SizedBox(height: 12.h),
-          _breakdownRow('Total Amount', '\$${totalAmount.toStringAsFixed(2)}'),
+          _breakdownRow('Base Price', _formatAmount(price.basePriceAmount)),
+          if (price.addonsTotalCents > 0) ...[
+            SizedBox(height: 8.h),
+            _breakdownRow('Add-ons', _formatAmount(price.addonsTotalAmount)),
+          ],
+          SizedBox(height: 12.h),
+          Divider(color: Colors.grey.shade200, height: 1),
+          SizedBox(height: 12.h),
+          _breakdownRow('Total Amount', _formatAmount(price.totalAmount)),
           SizedBox(height: 12.h),
           Divider(color: Colors.grey.shade200, height: 1),
           SizedBox(height: 12.h),
@@ -222,16 +265,17 @@ class PaymentScreen extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('-', style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade700)),
                   Text(
-                    '\$${fee.toStringAsFixed(2)}',
+                    _formatAmount(price.renizoFeeAmount),
                     style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                   ),
-                  Text(' (10%)', style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade500)),
+                  Text(' (${price.renizoFeePercent}%)', style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade500)),
                 ],
               ),
             ],
           ),
+          SizedBox(height: 8.h),
+          _breakdownRow('Provider Payout', _formatAmount(price.providerPayoutAmount)),
           SizedBox(height: 16.h),
           _buildWarrantyBox(),
         ],

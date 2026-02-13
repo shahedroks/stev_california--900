@@ -336,11 +336,12 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showHeader = _currentOverlay != 'notifications';
     return Scaffold(
       backgroundColor: _bgBlue,
       body: Column(
         children: [
-          _buildHeader(),
+          if (showHeader) _buildHeader(),
           Expanded(
             child: _currentOverlay != null ? _buildOverlayContent() : _buildTabContent(),
           ),
@@ -473,6 +474,10 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
       case 'notifications':
         return NotificationsScreen(
           onBack: () => setState(() => _currentOverlay = null),
+          onNavTabTap: (index) => setState(() {
+            _currentOverlay = null;
+            _activeTab = index;
+          }),
         );
       case 'availability':
         return _placeholderScreen('Availability', 'Set your working hours', () => setState(() => _currentOverlay = null));

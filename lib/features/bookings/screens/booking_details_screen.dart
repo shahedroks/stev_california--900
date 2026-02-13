@@ -328,11 +328,24 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
+            final total = booking.totalAmount ?? 0;
+            final base = booking.basePriceAmount ?? 0;
+            final addons = booking.addonsTotalAmount ?? 0;
+            final feeAmount = booking.renizoFeeAmount ?? (total * 0.10);
+            final payout = booking.providerPayoutAmount ?? (total - feeAmount);
             Navigator.of(context).push<void>(
               MaterialPageRoute<void>(
                 builder: (_) => PaymentScreen(
                   providerName: booking.providerName,
-                  totalAmount: booking.totalAmount ?? 0,
+                  price: PaymentPriceData(
+                    currency: booking.currency ?? 'CAD',
+                    basePriceCents: (base * 100).round(),
+                    addonsTotalCents: (addons * 100).round(),
+                    totalCents: (total * 100).round(),
+                    renizoFeePercent: booking.renizoFeePercent ?? 10,
+                    renizoFeeCents: (feeAmount * 100).round(),
+                    providerPayoutCents: (payout * 100).round(),
+                  ),
                 ),
               ),
             );
