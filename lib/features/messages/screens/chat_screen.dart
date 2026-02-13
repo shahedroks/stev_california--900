@@ -215,6 +215,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  
+
   Future<void> _loadMessagesFromApi() async {
     final threadId = _effectiveThreadId;
     if (threadId == null) {
