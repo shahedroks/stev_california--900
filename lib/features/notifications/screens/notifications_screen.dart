@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:renizo/core/models/town.dart';
+import 'package:renizo/core/services/push_notification_service.dart';
 import 'package:renizo/features/home/widgets/customer_header.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
 import 'package:renizo/features/notifications/data/notifications_api_models.dart';
@@ -48,11 +51,22 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   bool _isLoading = true;
   bool _isMarkingAllRead = false;
   final Set<String> _markingReadIds = <String>{};
+  StreamSubscription<void>? _newNotificationSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadNotifications();
+    _newNotificationSubscription =
+        PushNotificationService.onNewNotification.listen((_) {
+      if (mounted) _loadNotifications();
+    });
+  }
+
+  @override
+  void dispose() {
+    _newNotificationSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _onChangeTown() async {
@@ -114,6 +128,54 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       _notifications = items;
       _isLoading = false;
     });
+  }
+
+  /// Builds a scrollable child for RefreshIndicator (loading / empty / list).
+  Widget _buildScrollableContent(
+      BuildContext context, List<NotificationItem> notifications) {
+    if (_isLoading) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: 300.h,
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                strokeWidth: 2.5,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    if (notifications.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: 200.h),
+          _buildEmptyState(context),
+        ],
+      );
+    }
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+      itemCount: notifications.length,
+      itemBuilder: (context, index) {
+        final item = notifications[index];
+        final isMarkingRead = _markingReadIds.contains(item.id);
+        return Padding(
+          padding: EdgeInsets.only(bottom: 12.h),
+          child: _NotificationCard(
+            item: item,
+            isMarkingRead: isMarkingRead,
+            onIconTap: item.unread ? () => _markRead(item) : null,
+            onCardTap: () => _markRead(item),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _markRead(NotificationItem item) async {
@@ -202,38 +264,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           ),
           _buildTitle(unreadCount),
           Expanded(
-            child: _isLoading
-                ? Center(
-                    child: CircularProgressIndicator(
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.white),
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : notifications.isEmpty
-                    ? _buildEmptyState(context)
-                    : ListView.builder(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16.w,
-                          vertical: 16.h,
-                        ),
-                        itemCount: notifications.length,
-                        itemBuilder: (context, index) {
-                          final item = notifications[index];
-                          final isMarkingRead =
-                              _markingReadIds.contains(item.id);
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: 12.h),
-                            child: _NotificationCard(
-                              item: item,
-                              isMarkingRead: isMarkingRead,
-                              onIconTap: item.unread
-                                  ? () => _markRead(item)
-                                  : null,
-                            ),
-                          );
-                        },
-                      ),
+            child: RefreshIndicator(
+              onRefresh: _loadNotifications,
+              color: Colors.white,
+              backgroundColor: Colors.white24,
+              child: _buildScrollableContent(context, notifications),
+            ),
           ),
         ],
       ),
@@ -376,11 +412,14 @@ class _NotificationCard extends StatelessWidget {
   const _NotificationCard({
     required this.item,
     this.onIconTap,
+    this.onCardTap,
     this.isMarkingRead = false,
   });
 
   final NotificationItem item;
   final VoidCallback? onIconTap;
+  /// Called when the whole card is tapped – triggers PATCH /notifications/:id/read.
+  final VoidCallback? onCardTap;
   final bool isMarkingRead;
 
   @override
@@ -413,7 +452,7 @@ class _NotificationCard extends StatelessWidget {
             onTap: onIconTap,
             child: leading,
           );
-    return Container(
+    final content = Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -493,6 +532,14 @@ class _NotificationCard extends StatelessWidget {
         ],
       ),
     );
+    if (onCardTap != null) {
+      return InkWell(
+        onTap: onCardTap,
+        borderRadius: BorderRadius.circular(16.r),
+        child: content,
+      );
+    }
+    return content;
   }
 
   (IconData, Color, Color) _styleForType(NotificationItemType type) {

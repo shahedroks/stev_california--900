@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:renizo/core/constants/api_control/auth_api.dart';
 import 'package:renizo/core/constants/api_control/global_api.dart';
+import 'package:renizo/core/utils/auth_local_storage.dart';
 
 /// Response model for signup API
 class SignupResponse {
@@ -9,11 +10,7 @@ class SignupResponse {
   final String message;
   final SignupData? data;
 
-  SignupResponse({
-    required this.status,
-    required this.message,
-    this.data,
-  });
+  SignupResponse({required this.status, required this.message, this.data});
 
   factory SignupResponse.fromJson(Map<String, dynamic> json) {
     return SignupResponse(
@@ -28,10 +25,7 @@ class SignupData {
   final UserData user;
   final Tokens tokens;
 
-  SignupData({
-    required this.user,
-    required this.tokens,
-  });
+  SignupData({required this.user, required this.tokens});
 
   factory SignupData.fromJson(Map<String, dynamic> json) {
     return SignupData(
@@ -85,14 +79,10 @@ class UserData {
 class Tokens {
   final String accessToken;
 
-  Tokens({
-    required this.accessToken,
-  });
+  Tokens({required this.accessToken});
 
   factory Tokens.fromJson(Map<String, dynamic> json) {
-    return Tokens(
-      accessToken: json['accessToken'] ?? '',
-    );
+    return Tokens(accessToken: json['accessToken'] ?? '');
   }
 }
 
@@ -105,10 +95,7 @@ class AuthService {
     required String password,
   }) async {
     final url = Uri.parse(AuthAPIController.authLogin);
-    final body = jsonEncode({
-      'email': email,
-      'password': password,
-    });
+    final body = jsonEncode({'email': email, 'password': password});
 
     final response = await http.post(
       url,
@@ -141,7 +128,7 @@ class AuthService {
     // Use /auth/signup as shown in the image
     // If your API uses /users/signup, change this to: '$api/users/signup'
     final url = Uri.parse('$api/auth/signup');
-    
+
     final body = jsonEncode({
       'fullName': fullName,
       'email': email,
@@ -152,9 +139,7 @@ class AuthService {
 
     final response = await http.post(
       url,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: {'Content-Type': 'application/json'},
       body: body,
     );
 
@@ -162,10 +147,31 @@ class AuthService {
       final jsonResponse = jsonDecode(response.body);
       return SignupResponse.fromJson(jsonResponse);
     } else {
-      final errorBody = response.body.isNotEmpty 
-          ? jsonDecode(response.body) 
+      final errorBody = response.body.isNotEmpty
+          ? jsonDecode(response.body)
           : {'message': 'Signup failed'};
       throw Exception(errorBody['message'] ?? 'Signup failed');
+    }
+  }
+
+  /// PATCH /users/me/fcm-token – stores this device's FCM token on the backend.
+  static Future<void> updateFcmToken(String fcmToken) async {
+    final headers = await AuthLocalStorage.authHeaders();
+    if (headers == null) {
+      throw Exception('Missing auth token');
+    }
+
+    final response = await http.patch(
+      Uri.parse(AuthAPIController.meFcmToken),
+      headers: headers,
+      body: jsonEncode({'token': fcmToken}),
+    );
+
+    if (response.statusCode != 200) {
+      final errorBody = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : {'message': 'Failed to update FCM token'};
+      throw Exception(errorBody['message'] ?? 'Failed to update FCM token');
     }
   }
 }
