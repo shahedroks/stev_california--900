@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:renizo/core/services/stripe_service.dart';
+import 'package:renizo/features/bookings/logic/payment_logic.dart';
 
 /// Price data from booking details API (price object).
 class PaymentPriceData {
@@ -29,21 +32,34 @@ class PaymentPriceData {
 }
 
 /// Payment screen – shows payment summary and checkout using API price data.
-class PaymentScreen extends StatelessWidget {
+class PaymentScreen extends StatefulWidget {
   const PaymentScreen({
     super.key,
+    required this.bookingId,
     required this.providerName,
     required this.price,
   });
 
   static const String routeName = '/payment';
 
+  final String bookingId;
   final String providerName;
   final PaymentPriceData price;
+
+  @override
+  State<PaymentScreen> createState() => _PaymentScreenState();
+}
+
+class _PaymentScreenState extends State<PaymentScreen> {
+  bool _processing = false;
+  String? _errorMessage;
 
   static const Color _bgBlue = Color(0xFF2384F4);
   static const Color _cardBlueStart = Color(0xFF4F8EF7);
   static const Color _cardBlueEnd = Color(0xFF5A9BF8);
+
+  PaymentPriceData get price => widget.price;
+  String get providerName => widget.providerName;
 
   /// API থেকে যে amount আসে সেটাই দেখায়; দশমিক জোর করা হয় না (২/৩ যত আছে তত).
   String _formatAmount(double amount) {
@@ -128,7 +144,7 @@ class PaymentScreen extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: _processing ? null : _onPay,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B5BD3),
                     foregroundColor: Colors.white,
@@ -137,16 +153,26 @@ class PaymentScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14.r),
                     ),
                   ),
-                  child: Text(
-                    'Pay ${_formatAmount(price.totalAmount)}',
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: _processing
+                      ? SizedBox(
+                          height: 20.h,
+                          width: 20.h,
+                          child: const CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          'Pay ${_formatAmount(price.totalAmount)}',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
             ),
+            if (_errorMessage != null) _buildErrorBanner(),
           ],
         ),
       ),
@@ -325,5 +351,90 @@ class PaymentScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildErrorBanner() {
+    final msg = _errorMessage!;
+    return Container(
+      margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFF374151),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(14.r)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.white70, size: 22.sp),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Text(
+                msg,
+                style: TextStyle(fontSize: 13.sp, color: Colors.white),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() => _errorMessage = null);
+                _onPay();
+              },
+              child: Text('Try again', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600, color: Colors.white)),
+            ),
+            IconButton(
+              icon: Icon(Icons.close, size: 20.sp, color: Colors.white70),
+              onPressed: () => setState(() => _errorMessage = null),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onPay() async {
+    setState(() {
+      _processing = true;
+      _errorMessage = null;
+    });
+    try {
+      await StripeService.ensureInitialized();
+      final result =
+          await createPaymentIntent(bookingId: widget.bookingId);
+
+      if (result.alreadySucceeded) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment successful')),
+        );
+        Navigator.of(context).pop();
+        return;
+      }
+
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: result.clientSecret,
+          merchantDisplayName: 'Renizo',
+        ),
+      );
+      await Stripe.instance.presentPaymentSheet();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment successful')),
+      );
+      Navigator.of(context).pop();
+    } on StripeException catch (e) {
+      if (!mounted) return;
+      final message = e.error.message ?? 'Payment failed';
+      setState(() => _errorMessage = message);
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceFirst('Exception: ', '');
+      setState(() => _errorMessage = message);
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
   }
 }

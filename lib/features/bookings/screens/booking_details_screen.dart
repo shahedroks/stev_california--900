@@ -96,6 +96,11 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         basePriceAmount: _booking!.basePriceAmount,
         addonsTotalAmount: _booking!.addonsTotalAmount,
         providerPayoutAmount: _booking!.providerPayoutAmount,
+        basePriceCents: _booking!.basePriceCents,
+        addonsTotalCents: _booking!.addonsTotalCents,
+        totalCents: _booking!.totalCents,
+        renizoFeeCents: _booking!.renizoFeeCents,
+        providerPayoutCents: _booking!.providerPayoutCents,
       ));
     }
   }
@@ -328,6 +333,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
+            // Use raw API cents when present so payment screen shows exact API data (data ar state same).
             final total = booking.totalAmount ?? 0;
             final base = booking.basePriceAmount ?? 0;
             final addons = booking.addonsTotalAmount ?? 0;
@@ -336,15 +342,16 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
             Navigator.of(context).push<void>(
               MaterialPageRoute<void>(
                 builder: (_) => PaymentScreen(
+                  bookingId: booking.id,
                   providerName: booking.providerName,
                   price: PaymentPriceData(
                     currency: booking.currency ?? 'CAD',
-                    basePriceCents: (base * 100).round(),
-                    addonsTotalCents: (addons * 100).round(),
-                    totalCents: (total * 100).round(),
+                    basePriceCents: booking.basePriceCents ?? (base * 100).round(),
+                    addonsTotalCents: booking.addonsTotalCents ?? (addons * 100).round(),
+                    totalCents: booking.totalCents ?? (total * 100).round(),
                     renizoFeePercent: booking.renizoFeePercent ?? 10,
-                    renizoFeeCents: (feeAmount * 100).round(),
-                    providerPayoutCents: (payout * 100).round(),
+                    renizoFeeCents: booking.renizoFeeCents ?? (feeAmount * 100).round(),
+                    providerPayoutCents: booking.providerPayoutCents ?? (payout * 100).round(),
                   ),
                 ),
               ),

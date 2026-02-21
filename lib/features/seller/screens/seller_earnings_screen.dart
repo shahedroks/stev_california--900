@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:renizo/core/widgets/app_logo_button.dart';
+import 'package:renizo/features/seller/data/earnings_api_service.dart';
 import 'package:renizo/features/seller/models/seller_job_item.dart';
+import 'package:renizo/features/seller/screens/provider_payout_screen.dart';
 
 // TSX SellerEarningsScreen.tsx colors
 class _EarningsColors {
@@ -30,6 +32,8 @@ class _Transaction {
   final String customerName;
   final String categoryName;
   final double amount;
+  /// Net amount (e.g. from API amountEarned). If null, UI uses amount * 0.90.
+  final double? netAmount;
   final String date;
   final String status; // completed | pending | refunded
   final String bookingId;
@@ -39,6 +43,7 @@ class _Transaction {
     required this.customerName,
     required this.categoryName,
     required this.amount,
+    this.netAmount,
     required this.date,
     required this.status,
     required this.bookingId,
@@ -65,19 +70,73 @@ class _SellerEarningsScreenState extends State<SellerEarningsScreen> {
   String _selectedPeriod = 'week'; // today | week | month | all
   bool _showEarningsBreakdown = false;
 
-  static const _grossEarnings = {'today': 500.0, 'week': 2600.0, 'month': 9911.0, 'total': 50667.0};
-  double get _netToday => _grossEarnings['today']! * 0.90;
-  double get _netWeek => _grossEarnings['week']! * 0.90;
-  double get _netMonth => _grossEarnings['month']! * 0.90;
-  double get _netTotal => _grossEarnings['total']! * 0.90;
+  bool _loading = true;
+  String? _error;
+  EarningsResponse? _data;
+  final EarningsApiService _earningsApi = EarningsApiService();
 
-  static const _transactions = [
-    _Transaction(id: '1', customerName: 'John Doe', categoryName: 'Residential Cleaning', amount: 150, date: 'Today, 2:00 PM', status: 'completed', bookingId: 'booking1'),
-    _Transaction(id: '2', customerName: 'Sarah Johnson', categoryName: 'Lawn Care', amount: 200, date: 'Today, 10:00 AM', status: 'completed', bookingId: 'booking2'),
-    _Transaction(id: '3', customerName: 'Mike Williams', categoryName: 'Snow Removal', amount: 100, date: 'Yesterday, 4:30 PM', status: 'pending', bookingId: 'booking3'),
-    _Transaction(id: '4', customerName: 'Emily Davis', categoryName: 'Commercial Cleaning', amount: 80, date: 'Jan 15, 3:00 PM', status: 'completed', bookingId: 'booking4'),
-    _Transaction(id: '5', customerName: 'Robert Brown', categoryName: 'Moving Services', amount: 175, date: 'Jan 14, 11:00 AM', status: 'completed', bookingId: 'booking5'),
-  ];
+  double get _netToday => _data?.summary.todayDouble ?? 0;
+  double get _netWeek => _data?.summary.thisWeekDouble ?? 0;
+  double get _netMonth => _data?.summary.thisMonthDouble ?? 0;
+  double get _netTotal => _data?.summary.allTimeDouble ?? 0;
+
+  List<_Transaction> get _transactions {
+    if (_data == null) return [];
+    return _data!.recentTransactions.map((t) {
+      final dateStr = _formatCompletedAt(t.completedAt);
+      return _Transaction(
+        id: t.id,
+        customerName: t.customerName,
+        categoryName: t.serviceName,
+        amount: t.totalAmountDouble,
+        netAmount: t.amountEarnedDouble,
+        date: dateStr,
+        status: t.status,
+        bookingId: t.bookingId,
+      );
+    }).toList();
+  }
+
+  static String _formatCompletedAt(String isoDate) {
+    if (isoDate.isEmpty) return '—';
+    final dt = DateTime.tryParse(isoDate);
+    if (dt == null) return isoDate;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final d = DateTime(dt.year, dt.month, dt.day);
+    final time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    if (d == today) return 'Today, $time';
+    if (d == yesterday) return 'Yesterday, $time';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[dt.month - 1]} ${dt.day}, $time';
+  }
+
+  /// [showFullScreenLoading] – when true (e.g. initial load), show full-screen spinner. When false (refresh), keep content visible.
+  Future<void> _loadEarnings({bool showFullScreenLoading = true}) async {
+    if (!mounted) return;
+    setState(() {
+      _error = null;
+      if (showFullScreenLoading) _loading = true;
+    });
+    final response = await _earningsApi.getEarnings(transactionsLimit: 10);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      if (response == null) {
+        _error = 'Failed to load earnings. Check your connection.';
+      } else {
+        _data = response;
+        _error = null;
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEarnings();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,27 +165,68 @@ class _SellerEarningsScreenState extends State<SellerEarningsScreen> {
         Expanded(
           child: Container(
             color: _EarningsColors.blueBg,
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
-              children: [
-                _PeriodCard(
-                  selectedPeriod: _selectedPeriod,
-                  onPeriodChanged: (id) => setState(() => _selectedPeriod = id),
-                  showBreakdown: _showEarningsBreakdown,
-                  onToggleBreakdown: () => setState(() => _showEarningsBreakdown = !_showEarningsBreakdown),
-                  netToday: _netToday,
-                  netWeek: _netWeek,
-                  netMonth: _netMonth,
-                  netTotal: _netTotal,
-                ),
-                SizedBox(height: 16.h),
-                _PerformanceCard(),
-                SizedBox(height: 16.h),
-                _TransactionsCard(transactions: _transactions),
-                SizedBox(height: 16.h),
-                // _WithdrawalButton(),
-              ],
-            ),
+            child: _loading
+                ? Center(
+                    child: SizedBox(
+                      width: 48.w,
+                      height: 48.h,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                  )
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.w),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline, size: 48.sp, color: Colors.white70),
+                              SizedBox(height: 16.h),
+                              Text(
+                                _error!,
+                                style: TextStyle(fontSize: 14.sp, color: Colors.white70),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 16.h),
+                              TextButton.icon(
+                                onPressed: _loadEarnings,
+                                icon: const Icon(Icons.refresh, color: Colors.white),
+                                label: Text('Retry', style: TextStyle(color: Colors.white, fontSize: 14.sp)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: () => _loadEarnings(showFullScreenLoading: false),
+                        color: _EarningsColors.blueBg,
+                        backgroundColor: Colors.white,
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
+                          children: [
+                            _PeriodCard(
+                              selectedPeriod: _selectedPeriod,
+                              onPeriodChanged: (id) => setState(() => _selectedPeriod = id),
+                              showBreakdown: _showEarningsBreakdown,
+                              onToggleBreakdown: () => setState(() => _showEarningsBreakdown = !_showEarningsBreakdown),
+                              netToday: _netToday,
+                              netWeek: _netWeek,
+                              netMonth: _netMonth,
+                              netTotal: _netTotal,
+                            ),
+                            SizedBox(height: 16.h),
+                            _PerformanceCard(performance: _data?.performance),
+                            SizedBox(height: 16.h),
+                            _TransactionsCard(transactions: _transactions),
+                            SizedBox(height: 16.h),
+                            _PayoutButton(),
+                          ],
+                        ),
+                      ),
           ),
         ),
       ],
@@ -140,6 +240,11 @@ class _SellerEarningsScreenState extends State<SellerEarningsScreen> {
         backgroundColor: _EarningsColors.blueBg,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: Colors.white, size: 24.sp),
+            onPressed: _loading ? null : () => _loadEarnings(showFullScreenLoading: false),
+            tooltip: 'Refresh',
+          ),
           Padding(
             padding: EdgeInsets.only(right: 12.w),
             child: AppLogoButton(size: 34),
@@ -147,6 +252,36 @@ class _SellerEarningsScreenState extends State<SellerEarningsScreen> {
         ],
       ),
       body: content,
+    );
+  }
+}
+
+class _PayoutButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const ProviderPayoutScreen(),
+            ),
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: _EarningsColors.blueBg,
+          padding: EdgeInsets.symmetric(vertical: 14.h),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14.r),
+          ),
+        ),
+        child: Text(
+          'Set Provider Payout',
+          style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
+        ),
+      ),
     );
   }
 }
@@ -259,8 +394,13 @@ class _PeriodCard extends StatelessWidget {
 
 /// Performance stats – TSX: white rounded-2xl p-4, grid 2x2 (Completed, Rating, Response, Success).
 class _PerformanceCard extends StatelessWidget {
+  const _PerformanceCard({this.performance});
+
+  final EarningsPerformance? performance;
+
   @override
   Widget build(BuildContext context) {
+    final p = performance;
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16.r), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 2))]),
@@ -277,10 +417,10 @@ class _PerformanceCard extends StatelessWidget {
             crossAxisSpacing: 12.w,
             childAspectRatio: 1.1,
             children: [
-              _StatTile(icon: Icons.calendar_today_outlined, iconColor: Colors.green, label: 'Completed', value: '156', sublabel: 'Total Jobs'),
-              _StatTile(icon: Icons.star_outline, iconColor: Colors.amber, label: 'Rating', value: '4.8', sublabel: 'Average Score'),
-              _StatTile(icon: Icons.trending_up, iconColor: Colors.blue, label: 'Response', value: '2 hrs', sublabel: 'Avg. Time'),
-              _StatTile(icon: Icons.emoji_events_outlined, iconColor: Colors.purple, label: 'Success', value: '98%', sublabel: 'Job Success'),
+              _StatTile(icon: Icons.calendar_today_outlined, iconColor: Colors.green, label: 'Completed', value: '${p?.totalJobsCompleted ?? 0}', sublabel: 'Total Jobs'),
+              _StatTile(icon: Icons.star_outline, iconColor: Colors.amber, label: 'Rating', value: p != null ? p.averageRating.toStringAsFixed(1) : '—', sublabel: 'Average Score'),
+              _StatTile(icon: Icons.trending_up, iconColor: Colors.blue, label: 'Response', value: p?.averageResponseTime ?? '—', sublabel: 'Avg. Time'),
+              _StatTile(icon: Icons.emoji_events_outlined, iconColor: Colors.purple, label: 'Success', value: p != null ? '${p.jobSuccessRate}%' : '—', sublabel: 'Job Success'),
             ],
           ),
         ],
@@ -352,7 +492,7 @@ class _TransactionsCard extends StatelessWidget {
           ),
           SizedBox(height: 12.h),
           ...transactions.map((t) {
-            final netAmount = (t.amount * 0.90).toStringAsFixed(0);
+            final netAmount = (t.netAmount ?? t.amount * 0.90).toStringAsFixed(1);
             final statusColor = t.status == 'completed' ? (_EarningsColors.green100, _EarningsColors.green700) : t.status == 'pending' ? (_EarningsColors.yellow100, _EarningsColors.yellow700) : (_EarningsColors.gray100, _EarningsColors.gray700);
             return Padding(
               padding: EdgeInsets.only(bottom: 8.h),
@@ -379,7 +519,7 @@ class _TransactionsCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text('+\$$netAmount', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w600, color: _EarningsColors.teal)),
-                            Text('of \$${t.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 12.sp, color: _EarningsColors.gray400)),
+                            Text('of \$${t.amount.toStringAsFixed(1)}', style: TextStyle(fontSize: 12.sp, color: _EarningsColors.gray400)),
                             SizedBox(height: 4.h),
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),

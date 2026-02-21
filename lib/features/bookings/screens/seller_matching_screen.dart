@@ -557,14 +557,30 @@ class _SellerMatchingScreenState extends ConsumerState<SellerMatchingScreen> {
           colors: [_gradientStart, _gradientEnd],
         ),
       ),
-      child: Text(
-        'Choose a Provider',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 16.sp,
-          fontWeight: FontWeight.w500,
-          color: Colors.white,
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Choose a Provider',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+            ),
+          ),
+          if (widget.estimatedAmount > 0) ...[
+            SizedBox(height: 6.h),
+            Text(
+              'Estimated price: \$${widget.estimatedAmount.toStringAsFixed(2)}',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13.sp,
+                color: Colors.white.withOpacity(0.9),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

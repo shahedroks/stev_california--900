@@ -91,6 +91,11 @@ class BookingsMeRepository {
       basePriceAmount: p.totalCents > 0 ? p.basePriceCents / 100.0 : null,
       addonsTotalAmount: p.totalCents > 0 ? p.addonsTotalCents / 100.0 : null,
       providerPayoutAmount: p.totalCents > 0 ? p.providerPayoutCents / 100.0 : null,
+      basePriceCents: p.basePriceCents,
+      addonsTotalCents: p.addonsTotalCents,
+      totalCents: p.totalCents,
+      renizoFeeCents: p.renizoFeeCents,
+      providerPayoutCents: p.providerPayoutCents,
     );
   }
 

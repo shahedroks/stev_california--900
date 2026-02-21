@@ -54,6 +54,11 @@ class BookingDetailsModel {
     this.basePriceAmount,
     this.addonsTotalAmount,
     this.providerPayoutAmount,
+    this.basePriceCents,
+    this.addonsTotalCents,
+    this.totalCents,
+    this.renizoFeeCents,
+    this.providerPayoutCents,
   });
 
   final String id;
@@ -72,12 +77,18 @@ class BookingDetailsModel {
   final int? renizoFeePercent;
   /// From API price.currency (e.g. "CAD").
   final String? currency;
-  /// From API price.basePriceCents (in dollars).
+  /// From API price.basePriceCents (in dollars for display).
   final double? basePriceAmount;
-  /// From API price.addonsTotalCents (in dollars).
+  /// From API price.addonsTotalCents (in dollars for display).
   final double? addonsTotalAmount;
-  /// From API price.providerPayoutCents (in dollars).
+  /// From API price.providerPayoutCents (in dollars for display).
   final double? providerPayoutAmount;
+  /// Raw API price in cents – use so payment screen shows exact API data.
+  final int? basePriceCents;
+  final int? addonsTotalCents;
+  final int? totalCents;
+  final int? renizoFeeCents;
+  final int? providerPayoutCents;
 }
 
 enum PaymentStatus { unpaid, paidInApp, paidOutside }
@@ -146,6 +157,11 @@ Future<BookingDetailsModel?> getBookingById(String bookingId) async {
         status: BookingStatus.pending,
         paymentStatus: PaymentStatus.unpaid,
         totalAmount: 150,
+        basePriceCents: null,
+        addonsTotalCents: null,
+        totalCents: null,
+        renizoFeeCents: null,
+        providerPayoutCents: null,
       );
     case 'booking2':
       return BookingDetailsModel(
@@ -161,6 +177,11 @@ Future<BookingDetailsModel?> getBookingById(String bookingId) async {
         status: BookingStatus.confirmed,
         paymentStatus: PaymentStatus.paidInApp,
         totalAmount: 145,
+        basePriceCents: null,
+        addonsTotalCents: null,
+        totalCents: null,
+        renizoFeeCents: null,
+        providerPayoutCents: null,
       );
     default:
       return null;

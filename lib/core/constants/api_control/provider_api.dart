@@ -1,6 +1,7 @@
+import 'global_api.dart' as global;
+
 class ProviderApi {
-  //static const String api = "http://103.208.183.248:5000/api/v1";
-  static const String api = "http://103.208.181.235:5000/api/v1";
+  static String get api => global.api;
   static String get profileScreen => "$api/providers/me/profile";
   static String get dashboard => "$api/providers/me/dashboard";
   static String get myBookings => "$api/bookings/provider/me";
@@ -23,6 +24,21 @@ class ProviderApi {
   static String get acceptingJobs => "$api/providers/me/accepting-jobs";
   static String publicProfile(String providerUserId) =>
       "$api/providers/public/$providerUserId";
+  static String get providerPayout => "$api/providers/me/payout";
+
+  /// GET – combined earnings (summary + performance + recent transactions)
+  static Uri earningsUri({int? transactionsLimit, int page = 1, int limit = 20}) {
+    final params = <String, String>{
+      if (transactionsLimit != null) 'transactionsLimit': transactionsLimit.toString(),
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    return Uri.parse('$api/providers/me/earnings').replace(queryParameters: params.isEmpty ? null : params);
+  }
+  static String get earningsSummary => "$api/providers/me/earnings/summary";
+  static String get earningsPerformance => "$api/providers/me/earnings/performance";
+  static Uri earningsTransactionsUri({int page = 1, int limit = 20}) =>
+      Uri.parse('$api/providers/me/earnings/transactions').replace(queryParameters: {'page': page.toString(), 'limit': limit.toString()});
 
   /// POST body: townId, serviceId, subsectionId (List<String>), addonIds (List<String>), scheduledAtISO.
   static String get providerSearch => "$api/bookings/providers/search";

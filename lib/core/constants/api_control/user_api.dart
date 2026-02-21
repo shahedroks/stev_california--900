@@ -32,4 +32,17 @@ class UserApi {
       },
     );
   }
+
+  // ✅ Payment methods (customer) – GET list, POST add, PATCH default, DELETE
+  static final String paymentMethods = "$api/payments/methods";
+  static String paymentMethodSetDefault(String id) =>
+      "$api/payments/methods/$id/default";
+  static String paymentMethodById(String id) => "$api/payments/methods/$id";
+
+  // ✅ Payments (customer)
+  static final String paymentConfig = "$api/payments/config";
+  static final String paymentIntent = "$api/payments/intent";
+
+  // ✅ Booking price quote (customer)
+  static final String bookingsQuote = "$api/bookings/quote";
 }

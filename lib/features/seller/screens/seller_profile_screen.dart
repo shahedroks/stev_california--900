@@ -914,19 +914,19 @@ class _AccountMenuSection extends StatelessWidget {
           ),
         ),
       ),
-      _MenuItem(
-        icon: Icons.credit_card_outlined,
-        label: 'Payment Settings',
-        iconBg: _ProfileColors.pink50,
-        iconColor: _ProfileColors.pink600,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>
-                PaymentMethodsScreen(onBack: () => Navigator.pop(context)),
-          ),
-        ),
-      ),
+      // _MenuItem(
+      //   icon: Icons.credit_card_outlined,
+      //   label: 'Payment Settings',
+      //   iconBg: _ProfileColors.pink50,
+      //   iconColor: _ProfileColors.pink600,
+      //   onTap: () => Navigator.push(
+      //     context,
+      //     MaterialPageRoute(
+      //       builder: (_) =>
+      //           PaymentMethodsScreen(onBack: () => Navigator.pop(context)),
+      //     ),
+      //   ),
+      // ),
       _MenuItem(
         icon: Icons.settings_outlined,
         label: 'Settings',

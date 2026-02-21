@@ -261,6 +261,11 @@ class _ProviderAppScreenState extends ConsumerState<ProviderAppScreen> {
       paymentStatus:
           item.paidInApp ? PaymentStatus.paidInApp : PaymentStatus.unpaid,
       totalAmount: null,
+      basePriceCents: null,
+      addonsTotalCents: null,
+      totalCents: null,
+      renizoFeeCents: null,
+      providerPayoutCents: null,
     );
   }
 

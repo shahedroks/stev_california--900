@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:renizo/core/models/town.dart';
+import 'package:renizo/core/services/stripe_service.dart';
 import 'package:renizo/features/home/widgets/customer_header.dart';
 import 'package:renizo/features/nav_bar/screen/bottom_nav_bar.dart';
 import 'package:renizo/features/notifications/screens/notifications_screen.dart';
+import 'package:renizo/features/profile/logic/payment_methods_logic.dart';
+import 'package:renizo/features/profile/model/payment_method_model.dart';
 import 'package:renizo/features/town/screens/town_selection_screen.dart';
 
 /// Payment method – mirrors React PaymentMethodsScreen PaymentMethod.
@@ -28,6 +32,27 @@ class PaymentMethodItem {
   final String expiryYear;
   final bool isDefault;
   final String holderName;
+
+  /// From API model (GET /payments/methods).
+  static PaymentMethodItem fromApi(PaymentMethodApiModel m) {
+    final brand = m.brand.toLowerCase();
+    PaymentMethodType type = PaymentMethodType.visa;
+    if (brand.contains('master')) {
+      type = PaymentMethodType.mastercard;
+    } else if (brand.contains('amex') || brand.contains('american')) {
+      type = PaymentMethodType.amex;
+    }
+    final year = m.expYear >= 2000 ? m.expYear % 100 : m.expYear;
+    return PaymentMethodItem(
+      id: m.id,
+      type: type,
+      last4: m.last4,
+      expiryMonth: m.expMonth.toString().padLeft(2, '0'),
+      expiryYear: year.toString().padLeft(2, '0'),
+      isDefault: m.isDefault,
+      holderName: m.holderName ?? 'Cardholder',
+    );
+  }
 }
 
 /// Payment Methods – full conversion from React PaymentMethodsScreen.tsx.
@@ -56,27 +81,6 @@ class PaymentMethodsScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
-  List<PaymentMethodItem> _paymentMethods = [
-    PaymentMethodItem(
-      id: '1',
-      type: PaymentMethodType.visa,
-      last4: '4242',
-      expiryMonth: '12',
-      expiryYear: '25',
-      isDefault: true,
-      holderName: 'John Doe',
-    ),
-    PaymentMethodItem(
-      id: '2',
-      type: PaymentMethodType.mastercard,
-      last4: '8888',
-      expiryMonth: '08',
-      expiryYear: '26',
-      isDefault: false,
-      holderName: 'John Doe',
-    ),
-  ];
-
   bool _showAddCard = false;
   String? _selectedTownName;
   String? _selectedTownId;
@@ -134,30 +138,27 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     setState(() => _showAddCard = show);
   }
 
-  void _handleSetDefault(String id) {
-    setState(() {
-      _paymentMethods = _paymentMethods
-          .map(
-            (m) => PaymentMethodItem(
-              id: m.id,
-              type: m.type,
-              last4: m.last4,
-              expiryMonth: m.expiryMonth,
-              expiryYear: m.expiryYear,
-              isDefault: m.id == id,
-              holderName: m.holderName,
-            ),
-          )
-          .toList();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Default payment method updated')),
-    );
+  Future<void> _handleSetDefault(String id) async {
+    try {
+      await setDefaultPaymentMethod(id);
+      ref.invalidate(paymentMethodsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Default payment method updated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    }
   }
 
-  void _handleDelete(String id) {
-    final method = _paymentMethods.firstWhere((m) => m.id == id);
-    if (method.isDefault && _paymentMethods.length > 1) {
+  void _handleDelete(String id, List<PaymentMethodItem> paymentMethods) {
+    final method = paymentMethods.firstWhere((m) => m.id == id);
+    if (method.isDefault && paymentMethods.length > 1) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -180,17 +181,24 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              setState(
-                () => _paymentMethods = _paymentMethods
-                    .where((m) => m.id != id)
-                    .toList(),
-              );
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Payment method removed')),
-                );
+              try {
+                await deletePaymentMethod(id);
+                ref.invalidate(paymentMethodsProvider);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Payment method removed')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            e.toString().replaceFirst('Exception: ', ''))),
+                  );
+                }
               }
             },
             child: const Text('Remove'),
@@ -200,11 +208,9 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     );
   }
 
-  void _onAddCard(PaymentMethodItem card) {
-    setState(() {
-      _paymentMethods = [..._paymentMethods, card];
-      _showAddCard = false;
-    });
+  void _onPaymentMethodSaved() {
+    _setShowAddCard(false);
+    ref.invalidate(paymentMethodsProvider);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Payment method added successfully')),
     );
@@ -215,7 +221,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     if (_showAddCard) {
       return AddCardScreen(
         onBack: () => _setShowAddCard(false),
-        onAdd: _onAddCard,
+        onSaved: _onPaymentMethodSaved,
         selectedTownName: widget.selectedTownName ?? _selectedTownName,
         selectedTownId: widget.selectedTownId ?? _selectedTownId,
         onChangeTown: _onChangeTown,
@@ -223,6 +229,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
         onNavTabTap: _onNavTabTap,
       );
     }
+    final asyncMethods = ref.watch(paymentMethodsProvider);
     return Scaffold(
       backgroundColor: _bgBlue,
       resizeToAvoidBottomInset: true,
@@ -239,7 +246,43 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
           ),
           _buildHeader(),
           Expanded(
-            child: _paymentMethods.isEmpty ? _buildEmptyState() : _buildList(),
+            child: asyncMethods.when(
+              data: (apiList) {
+                final paymentMethods = apiList
+                    .map(PaymentMethodItem.fromApi)
+                    .toList();
+                return paymentMethods.isEmpty
+                    ? _buildEmptyState()
+                    : _buildList(paymentMethods);
+              },
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+              error: (err, _) => Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24.w),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        err.toString().replaceFirst('Exception: ', ''),
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 16.h),
+                      TextButton(
+                        onPressed: () =>
+                            ref.invalidate(paymentMethodsProvider),
+                        child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -363,18 +406,18 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
     );
   }
 
-  Widget _buildList() {
+  Widget _buildList(List<PaymentMethodItem> paymentMethods) {
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
       child: Column(
         children: [
-          ..._paymentMethods.map(
+          ...paymentMethods.map(
             (method) => Padding(
               padding: EdgeInsets.only(bottom: 16.h),
               child: _CardTile(
                 method: method,
                 onSetDefault: _handleSetDefault,
-                onDelete: _handleDelete,
+                onDelete: (id) => _handleDelete(id, paymentMethods),
               ),
             ),
           ),
@@ -565,11 +608,12 @@ class _CardTile extends StatelessWidget {
 
 /// Add Card – full conversion from React AddCardScreen.
 /// Same app header and bottom nav as CustomerHomeScreen.
+/// Uses Stripe SDK to create a PaymentMethod and saves it via API.
 class AddCardScreen extends StatefulWidget {
   const AddCardScreen({
     super.key,
     required this.onBack,
-    required this.onAdd,
+    this.onSaved,
     this.selectedTownName,
     this.selectedTownId,
     this.onChangeTown,
@@ -578,7 +622,8 @@ class AddCardScreen extends StatefulWidget {
   });
 
   final VoidCallback onBack;
-  final void Function(PaymentMethodItem card) onAdd;
+  /// Called after successfully adding via API.
+  final VoidCallback? onSaved;
   final String? selectedTownName;
   final String? selectedTownId;
   final Future<void> Function()? onChangeTown;
@@ -590,15 +635,37 @@ class AddCardScreen extends StatefulWidget {
 }
 
 class _AddCardScreenState extends State<AddCardScreen> {
-  final _cardNumberController = TextEditingController();
   final _holderNameController = TextEditingController();
-  final _expiryMonthController = TextEditingController();
-  final _expiryYearController = TextEditingController();
-  final _cvvController = TextEditingController();
+  CardFieldInputDetails? _cardDetails;
+  bool _stripeReady = false;
+  bool _saving = false;
   String? _selectedTownName;
   String? _selectedTownId;
 
   static const Color _bgBlue = Color(0xFF2384F4);
+
+  @override
+  void initState() {
+    super.initState();
+    _initStripe();
+  }
+
+  Future<void> _initStripe() async {
+    try {
+      await StripeService.ensureInitialized();
+      if (mounted) setState(() => _stripeReady = true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceFirst('Exception: ', ''),
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _onChangeTown() async {
     widget.onChangeTown?.call();
@@ -639,77 +706,58 @@ class _AddCardScreenState extends State<AddCardScreen> {
 
   @override
   void dispose() {
-    _cardNumberController.dispose();
     _holderNameController.dispose();
-    _expiryMonthController.dispose();
-    _expiryYearController.dispose();
-    _cvvController.dispose();
     super.dispose();
   }
 
-  String _formatCardNumber(String value) {
-    final cleaned = value.replaceAll(RegExp(r'\D'), '');
-    final buffer = StringBuffer();
-    for (var i = 0; i < cleaned.length && i < 16; i++) {
-      if (i > 0 && i % 4 == 0) buffer.write(' ');
-      buffer.write(cleaned[i]);
-    }
-    return buffer.toString();
-  }
-
-  void _onCardNumberChange(String value) {
-    final formatted = _formatCardNumber(value);
-    if (formatted != _cardNumberController.text) {
-      _cardNumberController.text = formatted;
-      _cardNumberController.selection = TextSelection.collapsed(
-        offset: formatted.length,
-      );
-    }
-  }
-
-  void _onAdd() {
-    final cardNumber = _cardNumberController.text.replaceAll(' ', '');
+  Future<void> _onAdd() async {
+    if (_saving) return;
     final holderName = _holderNameController.text.trim();
-    final expiryMonth = _expiryMonthController.text.trim();
-    final expiryYear = _expiryYearController.text.trim();
-    final cvv = _cvvController.text.trim();
-
-    if (cardNumber.isEmpty ||
-        holderName.isEmpty ||
-        expiryMonth.isEmpty ||
-        expiryYear.isEmpty ||
-        cvv.isEmpty) {
+    if (!_stripeReady) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
+        const SnackBar(content: Text('Stripe is not ready yet. Try again.')),
       );
       return;
     }
-    if (cardNumber.length != 16) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Invalid card number')));
+    if (holderName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter cardholder name')),
+      );
       return;
     }
-
-    PaymentMethodType type;
-    if (cardNumber.startsWith('4')) {
-      type = PaymentMethodType.visa;
-    } else if (cardNumber.startsWith('5')) {
-      type = PaymentMethodType.mastercard;
-    } else {
-      type = PaymentMethodType.amex;
+    if (!(_cardDetails?.complete ?? false)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter valid card details')),
+      );
+      return;
     }
-
-    final newCard = PaymentMethodItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      type: type,
-      last4: cardNumber.substring(12),
-      expiryMonth: expiryMonth,
-      expiryYear: expiryYear,
-      isDefault: false,
-      holderName: holderName,
-    );
-    widget.onAdd(newCard);
+    setState(() => _saving = true);
+    try {
+      final paymentMethod = await Stripe.instance.createPaymentMethod(
+        params: PaymentMethodParams.card(
+          paymentMethodData: PaymentMethodData(
+            billingDetails: BillingDetails(name: holderName),
+          ),
+        ),
+      );
+      await addPaymentMethod(paymentMethod.id);
+      widget.onSaved?.call();
+      if (mounted) widget.onBack();
+    } on StripeException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.error.message ?? 'Failed to add card')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -734,12 +782,48 @@ class _AddCardScreenState extends State<AddCardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildField(
-                    'Card Number',
-                    _cardNumberController,
-                    '1234 5678 9012 3456',
-                    19,
-                    (v) => _onCardNumberChange(v),
+                  Text(
+                    'Card Details',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  CardField(
+                    onCardChanged: (details) {
+                      setState(() => _cardDetails = details);
+                    },
+                    style: TextStyle(fontSize: 16.sp, color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Card number',
+                      hintStyle:
+                          TextStyle(color: Colors.white.withOpacity(0.5)),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16.r),
+                        borderSide: BorderSide(
+                          color: Colors.white.withOpacity(0.2),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16.r),
+                        borderSide: BorderSide(
+                          color: Colors.white.withOpacity(0.2),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16.r),
+                        borderSide:
+                            const BorderSide(color: Colors.white, width: 2),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 14.h,
+                      ),
+                    ),
                   ),
                   SizedBox(height: 16.h),
                   _buildField(
@@ -748,64 +832,6 @@ class _AddCardScreenState extends State<AddCardScreen> {
                     'John Doe',
                     null,
                     null,
-                  ),
-                  SizedBox(height: 16.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildField(
-                          'Month',
-                          _expiryMonthController,
-                          'MM',
-                          2,
-                          (v) {
-                            final d = _digitsOnly(v).length > 2
-                                ? _digitsOnly(v).substring(0, 2)
-                                : _digitsOnly(v);
-                            if (d != _expiryMonthController.text) {
-                              _expiryMonthController.text = d;
-                              _expiryMonthController.selection =
-                                  TextSelection.collapsed(offset: d.length);
-                            }
-                          },
-                        ),
-                      ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: _buildField(
-                          'Year',
-                          _expiryYearController,
-                          'YY',
-                          2,
-                          (v) {
-                            final d = _digitsOnly(v).length > 2
-                                ? _digitsOnly(v).substring(0, 2)
-                                : _digitsOnly(v);
-                            if (d != _expiryYearController.text) {
-                              _expiryYearController.text = d;
-                              _expiryYearController.selection =
-                                  TextSelection.collapsed(offset: d.length);
-                            }
-                          },
-                        ),
-                      ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: _buildField('CVV', _cvvController, '123', 3, (
-                          v,
-                        ) {
-                          final d = _digitsOnly(v).length > 3
-                              ? _digitsOnly(v).substring(0, 3)
-                              : _digitsOnly(v);
-                          if (d != _cvvController.text) {
-                            _cvvController.text = d;
-                            _cvvController.selection = TextSelection.collapsed(
-                              offset: d.length,
-                            );
-                          }
-                        }),
-                      ),
-                    ],
                   ),
                   SizedBox(height: 24.h),
                   Container(
@@ -876,18 +902,27 @@ class _AddCardScreenState extends State<AddCardScreen> {
             color: Colors.white.withOpacity(0.9),
             borderRadius: BorderRadius.circular(12.r),
             child: InkWell(
-              onTap: _onAdd,
+              onTap: _saving ? null : _onAdd,
               borderRadius: BorderRadius.circular(12.r),
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-                child: Text(
-                  'Add',
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF003E93),
-                  ),
-                ),
+                child: _saving
+                    ? SizedBox(
+                        height: 18.h,
+                        width: 18.h,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF003E93),
+                        ),
+                      )
+                    : Text(
+                        'Add',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF003E93),
+                        ),
+                      ),
               ),
             ),
           ),
@@ -949,4 +984,3 @@ class _AddCardScreenState extends State<AddCardScreen> {
   }
 }
 
-String _digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');

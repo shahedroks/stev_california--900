@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:renizo/core/constants/api_control/provider_api.dart';
 import 'package:renizo/core/models/service_category.dart';
 import 'package:renizo/core/utils/auth_local_storage.dart';
+import 'package:renizo/features/bookings/logic/booking_quote_logic.dart';
 import 'package:renizo/features/bookings/screens/seller_matching_screen.dart';
 
 /// Task submission form – full conversion from React TaskSubmission.tsx.
@@ -362,6 +363,26 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
     widget.onSubmit?.call(data);
 
     if (!mounted) return;
+    double estimatedAmount = 0;
+    try {
+      final quote = await fetchBookingQuote(
+        townId: widget.selectedTownId,
+        serviceId: _categoryId,
+        subsectionId: resolvedSubSectionId,
+        addonIds: _addOnId.isEmpty ? const [] : [_addOnId],
+      );
+      estimatedAmount = quote.totalAmount;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Price quote failed: ${e.toString().replaceFirst('Exception: ', '')}',
+            ),
+          ),
+        );
+      }
+    }
     final bookingId = 'booking_${DateTime.now().millisecondsSinceEpoch}';
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -374,6 +395,7 @@ class _TaskSubmissionScreenState extends State<TaskSubmissionScreen> {
           searchScheduledAtISO: _scheduledAtISO(),
           searchAddress: _address,
           searchNotes: _notes.isEmpty ? null : _notes,
+          estimatedAmount: estimatedAmount > 0 ? estimatedAmount : 0,
         ),
       ),
     );

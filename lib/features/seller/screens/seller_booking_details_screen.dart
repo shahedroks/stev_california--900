@@ -162,6 +162,11 @@ class _SellerBookingDetailsScreenState extends ConsumerState<SellerBookingDetail
         basePriceAmount: _booking!.basePriceAmount,
         addonsTotalAmount: _booking!.addonsTotalAmount,
         providerPayoutAmount: _booking!.providerPayoutAmount,
+        basePriceCents: _booking!.basePriceCents,
+        addonsTotalCents: _booking!.addonsTotalCents,
+        totalCents: _booking!.totalCents,
+        renizoFeeCents: _booking!.renizoFeeCents,
+        providerPayoutCents: _booking!.providerPayoutCents,
       ));
     }
   }

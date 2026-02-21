@@ -19,9 +19,25 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  await Firebase.initializeApp();
-  FirebaseAnalytics.instance; // removes "analytics library is missing" warning
-  await PushNotificationService.init();
+
+  bool firebaseOk = false;
+  try {
+    await Firebase.initializeApp();
+    FirebaseAnalytics.instance; // removes "analytics library is missing" warning
+    firebaseOk = true;
+  } catch (e, st) {
+    debugPrint('Firebase init failed (add GoogleService-Info.plist for iOS): $e');
+    debugPrint('$st');
+  }
+
+  if (firebaseOk) {
+    try {
+      await PushNotificationService.init();
+    } catch (e, st) {
+      debugPrint('PushNotificationService.init failed: $e');
+      debugPrint('$st');
+    }
+  }
 
   runApp(
     ProviderScope(
